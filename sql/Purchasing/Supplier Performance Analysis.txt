@@ -1,1 +1,19 @@
-SELECT      T0.CardCode AS [Tedarikçi Kodu],     T0.CardName AS [Tedarikçi Adı],     AVG(DATEDIFF(DAY, T0.DocDueDate, T1.DocDate)) AS [Ortalama Teslim Süresi (Gün)],     SUM(T1.Quantity) AS [Toplam Teslim Edilen Miktar],     COUNT(T1.DocEntry) AS [Toplam Sipariş] FROM      OPOR T0 INNER JOIN      POR1 T1 ON T0.DocEntry = T1.DocEntry WHERE      T0.CANCELED = 'N' GROUP BY      T0.CardCode, T0.CardName ORDER BY      [Ortalama Teslim Süresi (Gün)] ASC
+-- Supplier Delivery Performance Report
+-- Shows average delivery time, total delivered quantity, and total purchase orders per supplier
+
+SELECT  
+    PO.CardCode       AS [Supplier Code],  
+    PO.CardName       AS [Supplier Name],  
+    AVG(DATEDIFF(DAY, PO.DocDueDate, POL.DocDate)) AS [Avg Delivery Time (Days)],  
+    SUM(POL.Quantity) AS [Total Delivered Quantity],  
+    COUNT(POL.DocEntry) AS [Total Orders]  
+FROM  
+    OPOR PO
+    INNER JOIN POR1 POL ON PO.DocEntry = POL.DocEntry  
+WHERE  
+    PO.CANCELED = 'N'  
+GROUP BY  
+    PO.CardCode,  
+    PO.CardName  
+ORDER BY  
+    [Avg Delivery Time (Days)] ASC;
