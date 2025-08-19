@@ -1,1 +1,46 @@
-SELECT      T0.[DocEntry] AS "Belge Numarası",     T0.[DocDate],     T1.[ItemCode],      T1.[Dscription],      (SELECT TOP 1          T3.[Price]       FROM          POR1 T3       WHERE          T3.[ItemCode] = T1.[ItemCode]       ORDER BY          T3.[DocDate] DESC) AS 'Son Satınalma Fiyatı',     (SELECT TOP 1          T3.[DocDate]       FROM          POR1 T3       WHERE          T3.[ItemCode] = T1.[ItemCode]       ORDER BY          T3.[DocDate] DESC) AS 'Son Satınalma Tarihi',     T1.[Quantity],      T1.[Price],      T1.[Currency],      T1.[Rate],      T1.[LineTotal],      T1.[TotalFrgn],       T2.[PymntGroup],      T0.[ReqDate],      T0.[CardCode],      T0.[CardName],      T1.[Text] AS "Kalem Ayrıntıları",     T0.[Comments]  FROM      OPQT T0   INNER JOIN      PQT1 T1 ON T0.[DocEntry] = T1.[DocEntry]  INNER JOIN      OCTG T2 ON T0.[GroupNum] = T2.[GroupNum]  WHERE      T0.[DocStatus] = 'O' ORDER BY      T1.[ItemCode],     T1.[Price]
+SELECT
+    Q.DocEntry          AS [Document Number],
+    Q.DocDate           AS [Document Date],
+    QL.ItemCode         AS [Item Code],
+    QL.Dscription       AS [Item Description],
+
+    -- Last Purchase Price
+    (
+        SELECT TOP 1 P.Price
+        FROM POR1 P
+        WHERE P.ItemCode = QL.ItemCode
+        ORDER BY P.DocDate DESC
+    ) AS [Last Purchase Price],
+
+    -- Last Purchase Date
+    (
+        SELECT TOP 1 P.DocDate
+        FROM POR1 P
+        WHERE P.ItemCode = QL.ItemCode
+        ORDER BY P.DocDate DESC
+    ) AS [Last Purchase Date],
+
+    QL.Quantity         AS [Quantity],
+    QL.Price            AS [Unit Price],
+    QL.Currency         AS [Currency],
+    QL.Rate             AS [Exchange Rate],
+    QL.LineTotal        AS [Line Total (LC)],
+    QL.TotalFrgn        AS [Line Total (FC)],
+
+    Pmt.PymntGroup      AS [Payment Terms],
+    Q.ReqDate           AS [Requested Date],
+    Q.CardCode          AS [Vendor Code],
+    Q.CardName          AS [Vendor Name],
+    QL.Text             AS [Item Details],
+    Q.Comments          AS [Comments]
+
+FROM OPQT Q
+INNER JOIN PQT1 QL 
+    ON Q.DocEntry = QL.DocEntry
+INNER JOIN OCTG Pmt
+    ON Q.GroupNum = Pmt.GroupNum
+
+WHERE Q.DocStatus = 'O'
+ORDER BY 
+    QL.ItemCode,
+    QL.Price;
