@@ -1,0 +1,1 @@
+SELECT      T0.ItemCode AS [Mal Kodu],      T1.ItemName AS [Mal Adı],      T0.DocDate AS [Çıkış Tarihi],    T0.[BASE_REF], T0.[CardName], T0.[Warehouse],     T0.OutQty AS [Çıkan Miktar] FROM OINM T0 JOIN OITM T1 ON T0.ItemCode = T1.ItemCode WHERE T0.OutQty > 0 ORDER BY T0.DocDate DESC

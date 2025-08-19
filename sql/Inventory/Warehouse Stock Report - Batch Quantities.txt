@@ -1,0 +1,1 @@
+SELECT      T0.ItemCode,       T0.ItemName,        o.BatchNum AS 'Parti Numarası',      o.WhsCode,      o.Quantity,      T0.InvntryUom,     t.ItmsGrpNam AS 'Kalem Grubu' FROM OIBT o  INNER JOIN OITM T0 ON o.ItemCode = T0.ItemCode INNER JOIN OITB t ON T0.ItmsGrpCod = t.ItmsGrpCod WHERE o.Quantity <> '0'

@@ -1,0 +1,1 @@
+SELECT T0.[Code], T0.[Qauntity], T1.[Code], T1.[Quantity] FROM OITT T0  INNER JOIN ITT1 T1 ON T0.[Code] = T1.[Father] WHERE T1.[Type]='4' AND T0.[Code] LIKE '%[%2]%'

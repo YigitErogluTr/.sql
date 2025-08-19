@@ -1,0 +1,1 @@
+select  T0.[DocDate], T0.[CreateDate],  T1.[ItemCode], T1.[ItemName],T1.[Price], T1.[Quantity], T1.[Currency] from OIQI T0, IQI1 T1 Where T0.DocNum=1 And  T1.Quantity <>0

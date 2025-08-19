@@ -1,0 +1,1 @@
+SELECT      MONTH(T0.DocDueDate) AS [Ay],     YEAR(T0.DocDueDate) AS [Yıl],     SUM(T0.DocTotal) AS [Tahmini Nakit Girişi] FROM      ORDR T0 WHERE      T0.DocStatus = 'O' -- Açık siparişler GROUP BY      YEAR(T0.DocDueDate), MONTH(T0.DocDueDate) ORDER BY      YEAR(T0.DocDueDate), MONTH(T0.DocDueDate)

@@ -1,0 +1,1 @@
+SELECT      T0.[ItemCode],      T0.[ItemName],       T2.[ItmsGrpNam],      T0.[U_stokkodgrup],      T0.[U_urungrup],      T0.[U_enolcusu],      T0.[U_boyolcusu],      T1.[PrcName] FROM      OITM T0 INNER JOIN      OITB T2 ON T0.[ItmsGrpCod] = T2.[ItmsGrpCod] LEFT JOIN      OPRC T1 ON T0.[U_H1_UretimBolumu] = T1.[PrcCode]

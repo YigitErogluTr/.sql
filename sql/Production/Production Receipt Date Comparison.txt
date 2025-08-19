@@ -1,0 +1,1 @@
+SELECT      YEAR(T1.[DocDate]) AS "Yıl",     T1.[DocNum] AS "Belge No",     T1.[DocDate] AS "Belge Tarihi ÜSK",     T1.[CreateDate] AS "Oluşturma Tarihi ADOC",     CASE          WHEN T1.[DocDate] <> T1.[CreateDate] THEN 'Kayıt Tarihi Eşleşmiyor'         ELSE ''      END AS "Durum" FROM [dbo].[OIGN] T1  WHERE YEAR(T1.[DocDate]) = 2024
