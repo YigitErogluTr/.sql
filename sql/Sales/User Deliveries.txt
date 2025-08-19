@@ -1,1 +1,20 @@
-SELECT      T0.[DocEntry] AS 'Belge Numarası',     T0.[CreateDate] AS 'Oluşturma Tarihi',    YEAR(T0.[CreateDate]) AS 'Yıl',        MONTH(T0.[CreateDate]) AS 'Ay',       T0.[UpdateDate] AS 'Güncelleme Tarihi',     T1.[WhsCode] AS 'Ambar Kodu',     T2.[U_NAME] AS 'Kullanıcı Adı',      T1.ItemCode,     T1.Dscription,     T0.[CANCELED] AS 'İptal Durumu' FROM      ODLN T0 INNER JOIN      DLN1 T1 ON T0.[DocEntry] = T1.[DocEntry] INNER JOIN      OUSR T2 ON T0.[UserSign] = T2.[USERID] ORDER BY  T0.[CreateDate] desc
+-- Delivery Notes with user, warehouse, and line info (header + lines)
+SELECT
+    h.DocEntry                               AS DocumentNo,
+    h.CreateDate                             AS CreatedAt,
+    YEAR(h.CreateDate)                       AS Year,
+    MONTH(h.CreateDate)                      AS Month,
+    h.UpdateDate                             AS UpdatedAt,
+    l.WhsCode                                AS WarehouseCode,
+    u.U_NAME                                 AS CreatedByUser,     -- SAP B1 user display name
+    l.ItemCode                               AS ItemCode,
+    l.Dscription                             AS ItemDescription,
+    h.CANCELED                               AS IsCanceled
+FROM
+    ODLN  AS h   -- Delivery header
+    INNER JOIN DLN1 AS l  ON h.DocEntry = l.DocEntry  -- Delivery lines
+    INNER JOIN OUSR AS u  ON h.UserSign = u.USERID    -- Creator user
+-- Optional safety filters (uncomment if needed)
+-- WHERE h.CANCELED = 'N'
+ORDER BY
+    h.CreateDate DESC;
