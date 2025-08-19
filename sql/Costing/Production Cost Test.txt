@@ -1,1 +1,51 @@
-SELECT     YEAR(OWOR.PostDate) AS [Yıl],     MONTH(OWOR.PostDate) AS [Ay],     OWOR.PostDate AS [Belge Tarihi],     OWOR.DocNum AS [İş Emri No],     OWOR.ItemCode,     OWOR.ProdName,     OWOR.CmpltQty AS [Gerçekleşen Üretim Miktarı],     ISNULL(Maliyet.ToplamMaliyet, 0) AS [Toplam Üretim Maliyeti],     CASE          WHEN OWOR.CmpltQty > 0 THEN ISNULL(Maliyet.ToplamMaliyet, 0) / OWOR.CmpltQty          ELSE 0      END AS [Birim Maliyet] FROM     OWOR LEFT JOIN (     SELECT          IGN1.BaseRef AS İşEmriNo,         SUM(IGN1.Quantity * IGN1.Price) AS ToplamMaliyet     FROM          IGN1     INNER JOIN OIGN ON OIGN.DocEntry = IGN1.DocEntry     WHERE          IGN1.BaseType = 202     GROUP BY          IGN1.BaseRef ) AS Maliyet ON Maliyet.İşEmriNo = OWOR.DocNum WHERE     OWOR.CmpltQty > 0     AND OWOR.Status <> 'C' ORDER BY      OWOR.PostDate DESC
+/*
+  Production Cost per Work Order (Actual)
+  - Anonymized & parameterized
+  - For each production order, computes:
+      * Direct total cost from Goods Receipt (OIGN/IGN1, BaseType=202)
+      * Direct unit cost = Direct total / Completed quantity
+  - Optional date range filter on OWOR.PostDate.
+
+  Parameters:
+    @StartDate : DATE = NULL  -- inclusive; set NULL to ignore
+    @EndDate   : DATE = NULL  -- inclusive; set NULL to ignore
+*/
+
+DECLARE @StartDate DATE = NULL;
+DECLARE @EndDate   DATE = NULL;
+
+SELECT
+    YEAR(W.PostDate)                                   AS [Year],
+    MONTH(W.PostDate)                                  AS [Month],
+    W.PostDate                                         AS [PostingDate],
+    W.DocNum                                           AS [WorkOrderNo],
+    W.ItemCode,
+    W.ProdName                                         AS [ProductName],
+    W.CmpltQty                                         AS [CompletedQty],
+    COALESCE(Costs.TotalCost, 0)                       AS [DirectTotalCost],
+    CASE
+        WHEN COALESCE(W.CmpltQty, 0) > 0
+            THEN COALESCE(Costs.TotalCost, 0) / NULLIF(W.CmpltQty, 0)
+        ELSE 0
+    END                                                AS [DirectUnitCost]
+FROM dbo.OWOR AS W
+LEFT JOIN (
+    SELECT
+        I.BaseRef                                      AS WorkOrderNo,
+        SUM(I.Quantity * I.Price)                      AS TotalCost
+    FROM dbo.IGN1 AS I
+    INNER JOIN dbo.OIGN AS H
+        ON H.DocEntry = I.DocEntry
+    WHERE I.BaseType = 202  -- production order
+    GROUP BY I.BaseRef
+) AS Costs
+    ON Costs.WorkOrderNo = W.DocNum
+WHERE
+    W.CmpltQty > 0
+    AND W.Status <> 'C'
+    AND (
+        @StartDate IS NULL OR @EndDate IS NULL
+        OR (W.PostDate >= @StartDate AND W.PostDate < DATEADD(DAY, 1, @EndDate))
+    )
+ORDER BY
+    W.PostDate DESC;
