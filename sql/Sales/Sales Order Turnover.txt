@@ -1,1 +1,98 @@
-SELECT      T1.[DocDate] AS 'Kayıt tarihi',     T1.[DocDueDate] AS 'Planlanan Teslimat Tarihi',     T1.[TaxDate] AS 'Belge tarihi',     YEAR(T1.[TaxDate]) AS 'Belge Tarihi Yılı',     MONTH(T1.[TaxDate]) AS 'Belge Tarihi Ayı',     T1.[DocEntry] AS 'Belge numarası',     T1.[DocStatus] AS 'Belge Durumu',     T1.[CANCELED] AS 'İptal edildi',      T1.GroupNum,     OCTG.[ExtraDays] AS 'Vade Günü',      DATEADD(DAY, OCTG.[ExtraDays], T1.[DocDueDate]) AS 'Planlanan Vade Günü',     T1.[CardCode] AS 'Müşteri/satıcı kodu',      T1.[CardName] AS 'Müşteri/satıcı adı',     C.[GroupCode] AS 'Müşteri/Satıcı Grup Kodu',     G.[GroupName] AS 'Müşteri/Satıcı Grup Adı',     CASE          WHEN T1.[ShipToCode] <> '' THEN T1.[ShipToCode]         ELSE 'FATURA ADRESİNE SEVK'     END AS 'Sevkiyat adresi Kodu',     T1.[Address2] AS 'Sevkiyat adresi',      T1.[U_AIF_ET_OrderNo] AS 'Sipariş No',      T1.[U_H1_eIrsaliyeNo] AS 'e-İrsaliye No',      T1.[U_H1_BelgeTipi] AS 'Satış Belge Tipi',     T1.[SlpCode] AS 'Satış çalışanı kodu',      SLP.[SlpName] AS 'Satış çalışanı adı',      T0.[WhsCode] AS 'Depo kodu',     ITM.[ItmsGrpCod] AS 'Kalem grubu kodu',     ITB.[ItmsGrpNam] AS 'Kalem grubu adı',     ITM.[U_stokkodgrup] AS 'Stok Kod Grubu',     T0.[ItemCode] AS 'Kalem numarası',      T0.[Dscription] AS 'Kalem/hizmet tanımı',      T0.[Quantity] AS 'Miktar',      T0.[DelivrdQty] AS 'Teslim Edilen Miktar',     T0.[UomCode] AS 'Ölçü birimi kodu',     T0.[PriceBefDi] AS 'Birim fiyat',     T1.[DocCur] AS 'Belge para birimi',      T0.[Rate] AS 'Para birimi kuru',      CASE          WHEN T0.[Rate] = 0 OR T0.[Rate] IS NULL THEN T0.[PriceBefDi]         ELSE T0.[PriceBefDi] * T0.[Rate]     END AS 'TRY Karşılığı Birim Fiyat',      T0.[Quantity] *      CASE          WHEN T0.[Rate] = 0 OR T0.[Rate] IS NULL THEN T0.[PriceBefDi]         ELSE T0.[PriceBefDi] * T0.[Rate]     END AS 'Toplam TRY Satış (Vergi Hariç)',         T0.[DelivrdQty] *      CASE          WHEN T0.[Rate] = 0 OR T0.[Rate] IS NULL THEN T0.[PriceBefDi]         ELSE T0.[PriceBefDi] * T0.[Rate]     END AS 'Teslim Miktarı Toplam TRY Satış (Vergi Hariç)',      T0.[VatGroup],      CASE          WHEN T0.[VatGroup] = 's05' THEN ' %0'         WHEN T0.[VatGroup] = 's19' THEN ' %20'         WHEN T0.[VatGroup] = 's20' THEN ' %10'         WHEN T0.[VatGroup] = 's21' THEN ' %20'         WHEN T0.[VatGroup] = 'S04' THEN '%0'         WHEN T0.[VatGroup] = 'S12' THEN '%18'         WHEN T0.[VatGroup] = 'S22' THEN '%10'         WHEN T0.[VatGroup] = 'S23' THEN '%20'         WHEN T0.[VatGroup] = 'S24' THEN '%10'         ELSE ''     END AS 'Vergi oranı' FROM       [dbo].[RDR1] T0   INNER JOIN      [dbo].[ORDR] T1 ON T1.[DocEntry] = T0.[DocEntry] INNER JOIN      [dbo].[OCRD] C ON T1.[CardCode] = C.[CardCode] INNER JOIN      [dbo].[OCRG] G ON C.[GroupCode] = G.[GroupCode] INNER JOIN      [dbo].[OSLP] SLP ON T1.[SlpCode] = SLP.[SlpCode] INNER JOIN      [dbo].[OITM] ITM ON T0.[ItemCode] = ITM.[ItemCode] INNER JOIN      [dbo].[OITB] ITB ON ITM.[ItmsGrpCod] = ITB.[ItmsGrpCod] INNER JOIN      [dbo].[OCTG] OCTG ON T1.[GroupNum] = OCTG.[GroupNum] WHERE      T1.[CANCELED] = 'N' ORDER BY      T1.[DocEntry]
+-- Sales Orders with line details, delivery status, due terms impact, and TRY-calculated amounts
+SELECT
+    so.DocEntry                               AS OrderEntryId,
+    so.DocDate                                AS OrderCreatedOn,
+    so.DocDueDate                             AS PlannedDeliveryDate,
+    so.TaxDate                                AS DocumentDate,
+    YEAR(so.TaxDate)                          AS DocumentYear,
+    MONTH(so.TaxDate)                         AS DocumentMonth,
+    so.DocStatus                              AS OrderStatus,
+    so.CANCELED                               AS IsCanceled,
+    so.GroupNum                               AS PaymentTermsCode,
+    pt.ExtraDays                              AS PaymentTermExtraDays,
+    DATEADD(DAY, pt.ExtraDays, so.DocDueDate) AS PlannedDueDate,
+
+    -- Business partner
+    so.CardCode                               AS BpCode,
+    so.CardName                               AS BpName,
+    bp.GroupCode                              AS BpGroupCode,
+    bpg.GroupName                             AS BpGroupName,
+
+    -- Ship-to (fallback text anonymized/English)
+    CASE WHEN ISNULL(so.ShipToCode, '') <> '' THEN so.ShipToCode
+         ELSE 'SHIP_TO_BILLING_ADDRESS'
+    END                                        AS ShipToCode,
+    so.Address2                                AS ShipToAddress,
+
+    -- Custom fields (kept as-is, neutral English aliases)
+    so.U_AIF_ET_OrderNo                        AS ExternalOrderNo,
+    so.U_H1_eIrsaliyeNo                        AS EDispatchNo,
+    so.U_H1_BelgeTipi                          AS SalesDocType,
+
+    -- Sales employee
+    so.SlpCode                                 AS SalesEmployeeCode,
+    se.SlpName                                 AS SalesEmployeeName,
+
+    -- Item / warehouse
+    sol.WhsCode                                AS WarehouseCode,
+    it.ItmsGrpCod                              AS ItemGroupCode,
+    ig.ItmsGrpNam                              AS ItemGroupName,
+    it.U_stokkodgrup                           AS ItemCodeGroup,
+    sol.ItemCode                               AS ItemCode,
+    sol.Dscription                             AS ItemDescription,
+
+    -- Quantities
+    sol.Quantity                               AS OrderQty,
+    sol.DelivrdQty                             AS DeliveredQty,
+
+    -- UoM and pricing
+    sol.UomCode                                AS UomCode,
+    sol.PriceBefDi                             AS UnitPrice,
+    so.DocCur                                  AS DocumentCurrency,
+    sol.Rate                                   AS FxRate,
+
+    -- TRY-calculated amounts (tax excluded)
+    CASE
+        WHEN sol.Rate = 0 OR sol.Rate IS NULL THEN sol.PriceBefDi
+        ELSE sol.PriceBefDi * sol.Rate
+    END                                         AS UnitPriceTRY,
+
+    sol.Quantity *
+    CASE
+        WHEN sol.Rate = 0 OR sol.Rate IS NULL THEN sol.PriceBefDi
+        ELSE sol.PriceBefDi * sol.Rate
+    END                                         AS LineTotalTRY_ExclVat,
+
+    sol.DelivrdQty *
+    CASE
+        WHEN sol.Rate = 0 OR sol.Rate IS NULL THEN sol.PriceBefDi
+        ELSE sol.PriceBefDi * sol.Rate
+    END                                         AS DeliveredTotalTRY_ExclVat,
+
+    -- VAT
+    sol.VatGroup                               AS VatCode,
+    CASE sol.VatGroup
+        WHEN 's05' THEN '0%'
+        WHEN 's19' THEN '20%'
+        WHEN 's20' THEN '10%'
+        WHEN 's21' THEN '20%'
+        WHEN 'S04' THEN '0%'
+        WHEN 'S12' THEN '18%'
+        WHEN 'S22' THEN '10%'
+        WHEN 'S23' THEN '20%'
+        WHEN 'S24' THEN '10%'
+        ELSE ''
+    END                                         AS VatRateText
+FROM
+    RDR1  AS sol
+    INNER JOIN ORDR  AS so   ON so.DocEntry = sol.DocEntry
+    INNER JOIN OCRD  AS bp   ON so.CardCode = bp.CardCode
+    INNER JOIN OCRG  AS bpg  ON bp.GroupCode = bpg.GroupCode
+    INNER JOIN OSLP  AS se   ON so.SlpCode  = se.SlpCode
+    INNER JOIN OITM  AS it   ON sol.ItemCode = it.ItemCode
+    INNER JOIN OITB  AS ig   ON it.ItmsGrpCod = ig.ItmsGrpCod
+    INNER JOIN OCTG  AS pt   ON so.GroupNum = pt.GroupNum
+WHERE
+    so.CANCELED = 'N'
+ORDER BY
+    so.DocEntry;
