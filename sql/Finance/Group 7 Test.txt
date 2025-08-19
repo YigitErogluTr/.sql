@@ -1,1 +1,46 @@
-SELECT     YEAR(OJDT.RefDate) AS [Yıl],     MONTH(OJDT.RefDate) AS [Ay],      SUM(CASE WHEN LEFT(JDT1.Account, 3) = '710' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [710 - Direkt İlk Madde Malzeme],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '720' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [720 - Direkt İşçilik],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '730' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [730 - Genel Üretim Giderleri],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '740' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [740 - Hizmet Üretim Maliyeti],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '750' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [750 - Pazarlama Giderleri],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '760' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [760 - Genel Yönetim Giderleri],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '770' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [770 - Amortisman ve Finansman],     SUM(CASE WHEN LEFT(JDT1.Account, 3) = '780' THEN JDT1.Debit - JDT1.Credit ELSE 0 END) AS [780 - Finansman Giderleri]  FROM     OJDT INNER JOIN     JDT1 ON OJDT.TransId = JDT1.TransId WHERE     YEAR(OJDT.RefDate) = 2025 AND     LEFT(JDT1.Account, 3) IN ('710','720','730','740','750','760','770','780') GROUP BY     YEAR(OJDT.RefDate),     MONTH(OJDT.RefDate) ORDER BY     YEAR(OJDT.RefDate),     MONTH(OJDT.RefDate)
+/*
+  Monthly Expense Breakdown by Account Group
+  - Groups by year and month
+  - Calculates net (Debit - Credit) for each account group
+*/
+
+SELECT
+    YEAR(H.[RefDate])  AS [Year],
+    MONTH(H.[RefDate]) AS [Month],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '710'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC710 - Direct Material],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '720'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC720 - Direct Labor],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '730'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC730 - Manufacturing Overhead],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '740'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC740 - Service Production Cost],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '750'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC750 - Marketing Expenses],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '760'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC760 - General Admin Expenses],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '770'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC770 - Depreciation & Financing],
+
+    SUM(CASE WHEN LEFT(L.[Account], 3) = '780'
+             THEN L.[Debit] - L.[Credit] ELSE 0 END) AS [ACC780 - Financing Expenses]
+
+FROM dbo.OJDT AS H
+INNER JOIN dbo.JDT1 AS L
+        ON H.[TransId] = L.[TransId]
+WHERE
+    YEAR(H.[RefDate]) = 2025
+    AND LEFT(L.[Account], 3) IN ('710','720','730','740','750','760','770','780')
+GROUP BY
+    YEAR(H.[RefDate]),
+    MONTH(H.[RefDate])
+ORDER BY
+    YEAR(H.[RefDate]),
+    MONTH(H.[RefDate]);
