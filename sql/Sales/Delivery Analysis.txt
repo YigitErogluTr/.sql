@@ -1,1 +1,42 @@
-SELECT      T0."DocNum" AS "Satış Siparişi No",      T0."DocDate" AS "Sipariş Kayıt Tarihi",     T1.LineStatus,      T1."ItemCode" AS "Malzeme Kodu",      T1."Dscription" AS "Malzeme Açıklaması",      T1."Quantity" AS "Sipariş Miktarı",      T1."DelivrdQty" AS "Teslim Edilen Miktar",      T1."OpenQty" AS "Sevk Edilmeyen Miktar",     T1."ShipDate" AS "Sipariş Teslim Tarihi",     DATEDIFF(DAY, T1."ShipDate", GETDATE()) AS "Gecikme Günü",     CASE          WHEN T1."OpenQty" > 0 AND GETDATE() > T1."ShipDate" THEN 'Gecikti'         ELSE 'Zamanında'     END AS "Teslim Durumu",     T3."DocNum" AS "Teslimat Belge No",     T3."DocDate" AS "Teslimat Kayıt Tarihi" FROM      "ORDR" T0 -- Satış Siparişi Başlık Tablosu INNER JOIN      "RDR1" T1 -- Satış Siparişi Kalem Tablosu ON      T0."DocEntry" = T1."DocEntry" LEFT JOIN      "DLN1" T2 -- Teslimat Belgesi Kalem Tablosu ON      T1."DocEntry" = T2."BaseEntry" AND      T1."LineNum" = T2."BaseLine" LEFT JOIN      "ODLN" T3 -- Teslimat Belgesi Başlık Tablosu ON      T2."DocEntry" = T3."DocEntry" WHERE      T0."DocStatus" = 'O'  ORDER BY     T0."DocNum" DESC,     T1."LineNum" ASC
+-- Open Sales Orders with Delivery Status Report
+-- ORDR (Header) + RDR1 (Lines) + ODLN/DLN1 (Delivery)
+
+SELECT
+    H."DocNum"           AS "Sales Order No",
+    H."DocDate"          AS "Order Date",
+
+    L."LineStatus"       AS "Line Status",
+    L."ItemCode"         AS "Item Code",
+    L."Dscription"       AS "Item Description",
+    L."Quantity"         AS "Ordered Quantity",
+    L."DelivrdQty"       AS "Delivered Quantity",
+    L."OpenQty"          AS "Remaining Quantity",
+    L."ShipDate"         AS "Planned Delivery Date",
+
+    DATEDIFF(DAY, L."ShipDate", GETDATE()) AS "Delay (Days)",
+
+    CASE
+        WHEN L."OpenQty" > 0 AND GETDATE() > L."ShipDate"
+            THEN 'Delayed'
+        ELSE 'On Time'
+    END AS "Delivery Status",
+
+    D."DocNum"           AS "Delivery Document No",
+    D."DocDate"          AS "Delivery Date"
+
+FROM
+    "ORDR" H              -- Sales Order Header
+    INNER JOIN "RDR1" L   -- Sales Order Lines
+        ON H."DocEntry" = L."DocEntry"
+    LEFT JOIN "DLN1" DL   -- Delivery Note Lines
+        ON L."DocEntry" = DL."BaseEntry"
+       AND L."LineNum"  = DL."BaseLine"
+    LEFT JOIN "ODLN" D    -- Delivery Note Header
+        ON DL."DocEntry" = D."DocEntry"
+
+WHERE
+    H."DocStatus" = 'O'   -- Only Open Orders
+
+ORDER BY
+    H."DocNum" DESC,
+    L."LineNum" ASC;
