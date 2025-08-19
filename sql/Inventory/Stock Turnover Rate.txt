@@ -1,1 +1,27 @@
-SELECT      T1.[ItemCode],       T1.[Dscription],     SUM(T1.[Quantity]) AS "Satış Miktarı(Fatura)",      ISNULL(AVG(T2.OnHand), 0) AS "Stok",       ISNULL(SUM(T1.[Quantity]) / NULLIF(AVG(T2.OnHand), 0), 0) AS "Stok Devir Orani",     DATEDIFF(DAY, MIN(T0.DocDate), MAX(T0.DocDate)) AS "Kalem HareketGunu",       ISNULL((ISNULL(SUM(T1.[Quantity]) / NULLIF(AVG(T2.OnHand), 0), 0)) / NULLIF(DATEDIFF(DAY, MIN(T0.DocDate), MAX(T0.DocDate)), 0), 0) AS "Stok Devir Hızı",    MIN(T0.DocDate) AS "İlk Fatura Tarihi",    MAX(T0.DocDate) AS "Son Fatura Tarihi" FROM      OINV T0   INNER JOIN      INV1 T1 ON T0.DocEntry = T1.DocEntry   LEFT JOIN      OITM T2 ON T1.ItemCode = T2.ItemCode   GROUP BY      T1.ItemCode, T1.[Dscription] ORDER BY    "Stok Devir Hızı" DESC
+/* Inventory Turnover from Invoices (per item) */
+
+SELECT
+    L.ItemCode                                AS ItemCode,
+    L.Dscription                              AS ItemDescription,
+    SUM(L.Quantity)                           AS InvoicedQty,
+    COALESCE(AVG(I.OnHand), 0)                AS StockOnHand,             -- total on-hand (item level)
+    COALESCE(SUM(L.Quantity) / NULLIF(AVG(I.OnHand), 0), 0) AS InventoryTurnover,
+    DATEDIFF(DAY, MIN(H.DocDate), MAX(H.DocDate))          AS InvoiceSpanDays,
+    COALESCE(
+        (SUM(L.Quantity) / NULLIF(AVG(I.OnHand), 0))
+        / NULLIF(DATEDIFF(DAY, MIN(H.DocDate), MAX(H.DocDate)), 0),
+        0
+    )                                          AS TurnoverPerDay,
+    MIN(H.DocDate)                             AS FirstInvoiceDate,
+    MAX(H.DocDate)                             AS LastInvoiceDate
+FROM OINV AS H
+INNER JOIN INV1 AS L
+        ON H.DocEntry = L.DocEntry
+LEFT JOIN OITM AS I
+       ON L.ItemCode = I.ItemCode
+WHERE H.CANCELED = 'N'
+GROUP BY
+    L.ItemCode,
+    L.Dscription
+ORDER BY
+    TurnoverPerDay DESC;
