@@ -1,1 +1,34 @@
-SELECT      T0.[DocDate],     T0.[ItemCode],     T0.[ItemName],     T0.[BatchNum],     T0.[WhsCode],     T0.[BaseType],     T0.[BaseEntry],       CASE          WHEN T0.[BaseType] = '67' THEN 'Stok Nakli'         WHEN T0.[BaseType] = '10000071' THEN 'Sayım Giriş'         WHEN T0.[BaseType] = '59' THEN 'Mal Girişi'         WHEN T0.[BaseType] = '15' THEN 'Teslimat'         WHEN T0.[BaseType] = '60' THEN 'Mal Çıkışı'         WHEN T0.[BaseType] = '21' THEN 'Mal İadesi'         WHEN T0.[BaseType] = '20' THEN 'Satınalma Siparişi Mal Girişi'         WHEN T0.[BaseType] = '1250000001' THEN 'Nakil Talebi'         WHEN T0.[BaseType] = '16' THEN 'Müşteri İade'         WHEN T0.[BaseType]= '19' THEN 'Satıcı Faturası'         ELSE 'Diğer'     END AS BelgeTuru,      T0.[Quantity],     T0.[CardCode],     T0.[CardName],      CASE          WHEN T0.[Direction] = 1 THEN 'Çıkış'         WHEN T0.[Direction] IS NULL THEN 'Giriş'         ELSE 'Giriş'     END AS HareketYonu  FROM IBT1 T0  WHERE T0.[DocDate] BETWEEN [%0] AND [%1] ORDER BY T0.[BatchNum], T0.[DocDate] ASC
+/* Batch Transactions Report with Document Type & Movement Direction */
+
+SELECT
+    b.DocDate                      AS DocumentDate,
+    b.ItemCode                      AS ItemCode,
+    b.ItemName                      AS ItemName,
+    b.BatchNum                      AS BatchNumber,
+    b.WhsCode                       AS Warehouse,
+    b.BaseType                      AS BaseType,
+    b.BaseEntry                     AS BaseEntry,
+    CASE b.BaseType
+        WHEN '67'        THEN 'Stock Transfer'
+        WHEN '10000071'  THEN 'Stock Count Entry'
+        WHEN '59'        THEN 'Goods Receipt'
+        WHEN '15'        THEN 'Delivery'
+        WHEN '60'        THEN 'Goods Issue'
+        WHEN '21'        THEN 'Return'
+        WHEN '20'        THEN 'Purchase Order Receipt'
+        WHEN '1250000001' THEN 'Transfer Request'
+        WHEN '16'        THEN 'Customer Return'
+        WHEN '19'        THEN 'Vendor Invoice'
+        ELSE 'Other'
+    END                            AS DocumentType,
+    b.Quantity                      AS Quantity,
+    b.CardCode                      AS BusinessPartnerCode,
+    b.CardName                      AS BusinessPartnerName,
+    CASE 
+        WHEN b.Direction = 1     THEN 'Issue'
+        WHEN b.Direction IS NULL THEN 'Receipt'
+        ELSE 'Receipt'
+    END                            AS MovementDirection
+FROM dbo.IBT1 AS b
+WHERE b.DocDate BETWEEN [%0] AND [%1]
+ORDER BY b.BatchNum, b.DocDate ASC;
