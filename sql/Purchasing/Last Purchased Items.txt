@@ -1,1 +1,85 @@
-SELECT      T1.ItemCode AS [Ürün Kodu],     T1.Dscription AS [Ürün Adı],     T0.CardName AS [Tedarikçi Adı],     T1.Quantity AS [İrsaliye Miktar],     T1.UomCode as 'İrsaliye Birim',     T1.Price AS [İrsaliye Birim Fiyat],     T1.InvQty as 'Stok Miktar',     T1.UomCode2 as 'Stok Birim',      FORMAT(         CAST(              CAST(T1.Quantity AS DECIMAL(38,8)) *              CAST(T1.Price AS DECIMAL(38,8)) *              CAST(CASE WHEN T1.Currency = 'TRY' THEN 1 ELSE T1.Rate END AS DECIMAL(38,8)) /              NULLIF(CAST(T1.InvQty AS DECIMAL(38,8)), 0)         AS DECIMAL(38,8)),         'N8',         'tr-TR'     ) AS [Stok Birim Fiyatı],      T1.Currency,     T1.Rate,     T0.DocDate AS [SAS Mal Giriş Tarihi],     T0.DocEntry as [SAS Mal Giriş],      CASE          WHEN T1.BaseType = 22 THEN 'Satınalma Siparişi'          ELSE CAST(T1.BaseType AS VARCHAR)      END AS [Temel Belge Türü],      T1.[BaseEntry] as [Temel Belge],     T2.[U_NAME] AS [Mal Girişi Oluşturan],     T3.U_NAME AS [Temel Belge Oluşturan],          CASE          WHEN T1.TargetType = 18 THEN 'Satıcı Faturası'          WHEN T1.TargetType = 21 THEN 'Mal İadesi'          WHEN T1.TargetType = 234000032 THEN 'Mal İadesi Talebi'          ELSE CAST(T1.TargetType AS VARCHAR)      END AS [Hedef Belge Türü],      T1.TrgetEntry,     T_INV.NumAtCard AS [Satıcı Fatura No]  FROM      OPDN T0 INNER JOIN      PDN1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN      OUSR T2 ON T0.[UserSign] = T2.[USERID] LEFT JOIN      OPOR T_Base ON T1.BaseType = 22 AND T1.BaseEntry = T_Base.DocEntry LEFT JOIN      OUSR T3 ON T_Base.UserSign = T3.USERID LEFT JOIN  OPCH T_INV ON T1.TargetType = 18 AND T1.TrgetEntry = T_INV.DocEntry WHERE      T0.CANCELED = 'N' ORDER BY      T0.DocDate DESC
+/*
+  Last Purchased Items (Goods Receipt Lines)
+  ------------------------------------------
+  - Header: OPDN (Goods Receipt PO)
+  - Lines : PDN1
+  - Optional base doc (PO): OPOR
+  - Optional target doc (AP Invoice): OPCH
+  - Users: OUSR (for creator names)
+
+  Notes:
+  * Stock-unit unit cost is computed as:
+      (GRN Quantity * GRN Unit Price * FX Rate to Local)
+      / Inventory Quantity
+  * FX rate logic: if Currency = 'TRY' (local), use 1, else use PDN1.Rate.
+  * Column aliases are neutral/English for public repositories.
+*/
+
+SELECT
+    L.ItemCode                       AS [ItemCode],
+    L.Dscription                     AS [ItemDescription],
+    H.CardName                       AS [SupplierName],
+
+    L.Quantity                       AS [GRNQuantity],
+    L.UomCode                        AS [GRNUoM],
+    L.Price                          AS [GRNUnitPrice],
+
+    L.InvQty                         AS [InventoryQty],
+    L.UomCode2                       AS [InventoryUoM],
+
+    -- Computed unit cost in stock (inventory) UoM, in local currency
+    CAST(
+        (
+          CAST(L.Quantity AS DECIMAL(38,8)) *
+          CAST(L.Price    AS DECIMAL(38,8)) *
+          CAST(CASE WHEN L.Currency = 'TRY' THEN 1 ELSE L.Rate END AS DECIMAL(38,8))
+        )
+        / NULLIF(CAST(L.InvQty AS DECIMAL(38,8)), 0)
+      AS DECIMAL(18,6)
+    )                                 AS [UnitCostInInventoryUoM],
+
+    L.Currency                        AS [Currency],
+    L.Rate                            AS [FxRate],
+
+    H.DocDate                         AS [GRNDate],
+    H.DocEntry                        AS [GRNEntry],
+
+    -- Base document (from which GRN is created)
+    CASE
+        WHEN L.BaseType = 22 THEN 'Purchase Order'
+        ELSE CAST(L.BaseType AS VARCHAR(20))
+    END                               AS [BaseDocType],
+    L.BaseEntry                       AS [BaseDocEntry],
+
+    U_GRN.U_NAME                      AS [CreatedBy_GRN],
+    U_BASE.U_NAME                     AS [CreatedBy_BaseDoc],
+
+    -- Target document (created from GRN line)
+    CASE
+        WHEN L.TargetType = 18 THEN 'AP Invoice'
+        WHEN L.TargetType = 21 THEN 'Goods Return'
+        WHEN L.TargetType = 234000032 THEN 'Return Request'
+        ELSE CAST(L.TargetType AS VARCHAR(20))
+    END                               AS [TargetDocType],
+    L.TrgetEntry                      AS [TargetDocEntry],
+
+    AP.NumAtCard                      AS [SupplierInvoiceRef]
+
+FROM dbo.OPDN AS H
+INNER JOIN dbo.PDN1 AS L
+        ON H.DocEntry = L.DocEntry
+INNER JOIN dbo.OUSR AS U_GRN
+        ON H.UserSign = U_GRN.USERID
+
+LEFT  JOIN dbo.OPOR AS PO
+        ON L.BaseType = 22
+       AND L.BaseEntry = PO.DocEntry
+LEFT  JOIN dbo.OUSR AS U_BASE
+        ON PO.UserSign = U_BASE.USERID
+
+LEFT  JOIN dbo.OPCH AS AP
+        ON L.TargetType = 18
+       AND L.TrgetEntry = AP.DocEntry
+
+WHERE H.CANCELED = 'N'
+ORDER BY H.DocDate DESC;
