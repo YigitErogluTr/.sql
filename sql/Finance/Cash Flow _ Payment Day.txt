@@ -1,1 +1,19 @@
-SELECT     MONTH(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate)) AS [Ay],     YEAR(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate)) AS [Yıl],     SUM(T0.DocTotal) AS [Tahmini Nakit Girişi] FROM     ORDR T0 LEFT JOIN     OCTG ON T0.GroupNum = OCTG.GroupNum -- Ödeme koşullarıyla ilişkilendirme WHERE     T0.DocStatus = 'O' -- Açık siparişler GROUP BY     YEAR(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate)),     MONTH(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate)) ORDER BY     YEAR(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate)),     MONTH(DATEADD(DAY, ISNULL(OCTG.ExtraDays, 0), T0.DocDueDate))
+/*
+  Projected Cash Inflow by Month & Year (from open sales orders)
+  - Based on due date + payment terms extra days
+  - Safe for public repos (no sensitive info)
+*/
+
+SELECT
+    YEAR(DATEADD(DAY, ISNULL(PaymentTerms.ExtraDays, 0), SO.DocDueDate))   AS [Year],
+    MONTH(DATEADD(DAY, ISNULL(PaymentTerms.ExtraDays, 0), SO.DocDueDate))  AS [Month],
+    SUM(SO.DocTotal)                                                       AS [ProjectedCashInflow]
+FROM dbo.ORDR AS SO
+LEFT JOIN dbo.OCTG AS PaymentTerms
+       ON SO.GroupNum = PaymentTerms.GroupNum   -- link to payment terms
+WHERE SO.DocStatus = 'O'   -- only open sales orders
+GROUP BY
+    YEAR(DATEADD(DAY, ISNULL(PaymentTerms.ExtraDays, 0), SO.DocDueDate)),
+    MONTH(DATEADD(DAY, ISNULL(PaymentTerms.ExtraDays, 0), SO.DocDueDate))
+ORDER BY
+    [Year], [Month];
