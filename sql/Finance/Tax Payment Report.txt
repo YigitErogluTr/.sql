@@ -1,1 +1,47 @@
-SELECT      T1.[Account] AS Hesap_Kodu,      T2.[AcctName],      T2.[ActCurr],      MONTH(T0.[TaxDate]) AS Ay,     SUM(T1.[Debit]) AS "Aylık Toplam Borç",      SUM(T1.[Credit]) AS "Aylık Toplam Alacak" FROM      OJDT T0   INNER JOIN      JDT1 T1 ON T0.[TransId] = T1.[TransId]  INNER JOIN      OACT T2 ON T1.[Account] = T2.[AcctCode]  WHERE      T1.[Account] LIKE N'360%' OR     T1.[Account] LIKE N'361%' OR     T1.[Account] LIKE N'770-01-01-026%' OR     T1.[Account] LIKE N'770-01-01-057%' OR     T1.[Account] LIKE N'770-01-01-045%' OR     T1.[Account] LIKE N'770-01-01-053%' OR     T1.[Account] LIKE N'689-01-01-008%' OR     T1.[Account] LIKE N'7689-01-01-007%' GROUP BY      T1.[Account],      T2.[AcctName],      T2.[ActCurr],      MONTH(T0.[TaxDate])
+/*
+  Monthly Debit / Credit Summary (by Selected Account Patterns)
+  - Safe for public repos: account codes are provided via parameterized pattern list
+  - Aggregates by Year + Month to avoid cross-year collisions
+*/
+
+-- 1) Provide your account code patterns here (ANONYMIZED EXAMPLE VALUES)
+DECLARE @AccountPatterns TABLE (Pattern NVARCHAR(50) NOT NULL);
+INSERT INTO @AccountPatterns (Pattern)
+VALUES
+    (N'ACC360%'),           -- e.g., replace with '360%' in private env
+    (N'ACC361%'),           -- e.g., replace with '361%'
+    (N'ACC770%'),           -- e.g., replace with '770%'
+    (N'ACC7707%'),
+    (N'ACC770%'),
+    (N'ACC770%'),
+    (N'ACC689%'),
+    (N'ACC7689%');
+
+SELECT
+    YEAR(H.[TaxDate])  AS [Year],
+    MONTH(H.[TaxDate]) AS [Month],
+    L.[Account]        AS [AccountCode],
+    A.[AcctName]       AS [AccountName],
+    A.[ActCurr]        AS [AccountCurrency],
+    SUM(L.[Debit])     AS [MonthlyTotalDebit],
+    SUM(L.[Credit])    AS [MonthlyTotalCredit]
+FROM dbo.OJDT AS H
+INNER JOIN dbo.JDT1 AS L
+        ON H.[TransId] = L.[TransId]
+INNER JOIN dbo.OACT AS A
+        ON L.[Account] = A.[AcctCode]
+WHERE EXISTS (
+    SELECT 1
+    FROM @AccountPatterns P
+    WHERE L.[Account] LIKE P.Pattern
+)
+GROUP BY
+    YEAR(H.[TaxDate]),
+    MONTH(H.[TaxDate]),
+    L.[Account],
+    A.[AcctName],
+    A.[ActCurr]
+ORDER BY
+    [Year],
+    [Month],
+    [AccountCode];
