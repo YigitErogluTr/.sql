@@ -1,1 +1,23 @@
-SELECT      T0.ItemCode as "Kalem Kodu",      T0.ItemName as "Kalem Tanımı",       T1.WhsCode as "Depo",  'PARTİ TAKİBİ YAPILMAMAKTADIR.' AS "Parti Takibi Durumu",     T1.OnHand as "Stok",      T0.AvgPrice as "Maliyet",      (T1.OnHand * T0.AvgPrice) AS "Toplam Maliyet",     T2.ItmsGrpNam as "Malzeme Grubu",     T0.InvntryUom as "Stok Takip Birimi",     T0.ItmsGrpCod FROM      OITM T0     INNER JOIN OITW T1 ON T0.ItemCode = T1.ItemCode     INNER JOIN OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod   WHERE      T0.ManBtchNum = 'N'     AND T1.OnHand > 0 ORDER BY      T0.ItemCode
+/* Non-batch-tracked items with positive on-hand balance (inventory valuation by warehouse) */
+
+SELECT
+    i.ItemCode                 AS ItemCode,
+    i.ItemName                 AS ItemName,
+    w.WhsCode                  AS WarehouseCode,
+    'BATCH TRACKING NOT APPLICABLE' AS BatchTrackingStatus,
+    w.OnHand                   AS OnHandQuantity,
+    i.AvgPrice                 AS AverageCost,
+    (w.OnHand * i.AvgPrice)    AS TotalInventoryValue,
+    g.ItmsGrpNam               AS ItemGroupName,
+    i.InvntryUom               AS InventoryUoM,
+    i.ItmsGrpCod               AS ItemGroupCode
+FROM dbo.OITM AS i
+INNER JOIN dbo.OITW AS w
+    ON i.ItemCode = w.ItemCode
+INNER JOIN dbo.OITB AS g
+    ON i.ItmsGrpCod = g.ItmsGrpCod
+WHERE
+    i.ManBtchNum = 'N'     -- not batch-managed
+    AND w.OnHand > 0
+ORDER BY
+    i.ItemCode;
