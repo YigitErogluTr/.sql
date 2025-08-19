@@ -1,1 +1,35 @@
-SELECT      T0.DocDueDate,     T0.TaxDate,     T0.DocEntry AS [Belge No],     T0.CardName,     T1.ItemCode AS [Ürün Kodu],     T2.ItemName AS [Ürün Adı],     T1.WhsCode AS [Depo Kodu],     T1.Quantity AS [Sipariş Miktarı],     T3.OnHand AS [Depodaki Mevcut Miktar],     T3.OnHand - T1.Quantity AS [Kullanılabilir Stok Miktarı],     CASE         WHEN T3.OnHand - T1.Quantity >= 0 THEN 'YETERLİ STOK'         ELSE 'YETERSİZ STOK'     END AS [Stok Durumu] FROM      ORDR T0 INNER JOIN      RDR1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN      OITM T2 ON T1.ItemCode = T2.ItemCode INNER JOIN      OITW T3 ON T1.ItemCode = T3.ItemCode AND T1.WhsCode = T3.WhsCode WHERE      T0.DocStatus = 'O'     AND T2.InvntItem = 'Y'   ORDER BY      T0.DocEntry
+/*
+  Open Sales Orders vs. Warehouse Stock
+  - Shows whether available stock is sufficient to cover open sales order lines
+  - Excludes non-inventory items
+*/
+
+SELECT
+    H.DocDueDate       AS [DueDate],
+    H.TaxDate          AS [DocumentDate],
+    H.DocEntry         AS [OrderNo],
+    H.CardName         AS [CustomerName],
+
+    L.ItemCode         AS [ItemCode],
+    I.ItemName         AS [ItemName],
+    L.WhsCode          AS [WarehouseCode],
+
+    L.Quantity         AS [OrderQty],
+    W.OnHand           AS [StockOnHand],
+    (W.OnHand - L.Quantity) AS [AvailableAfterOrder],
+
+    CASE
+        WHEN W.OnHand - L.Quantity >= 0 THEN 'STOCK SUFFICIENT'
+        ELSE 'STOCK INSUFFICIENT'
+    END AS [StockStatus]
+
+FROM ORDR AS H
+INNER JOIN RDR1 AS L ON H.DocEntry = L.DocEntry
+INNER JOIN OITM AS I ON L.ItemCode = I.ItemCode
+INNER JOIN OITW AS W ON L.ItemCode = W.ItemCode
+                    AND L.WhsCode = W.WhsCode
+
+WHERE H.DocStatus = 'O'        -- Only Open orders
+  AND I.InvntItem = 'Y'        -- Inventory items only
+
+ORDER BY H.DocEntry;
