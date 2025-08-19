@@ -1,1 +1,72 @@
-/* SELECT * FROM OJDT T0 */  DECLARE @BASTAR DATE DECLARE @BITTAR DATE  SET @BASTAR = /* T0.RefDate */ '[%0]' SET @BITTAR = /* T0.RefDate */ '[%1]'  --SET @BASTAR = '2023-01-01' --SET @BITTAR = '2023-01-31'  SELECT  B.Account, C.AcctName, B.ProfitCode, T4.OcrName, SUM(B.Debit) Debit, SUM(B.Credit) Credit, SUM(B.Debit) - SUM(B.Credit) Bakiye, C.U_SNT_StandartMaliyetKarsiHesabi StandartMaliyetKarsiHesabi,  (SELECT SUM(X.Debit) - SUM(X.Credit) FROM JDT1 X WITH(NOLOCK) WHERE X.RefDate BETWEEN @BASTAR  AND @BITTAR AND X.Account=C.U_SNT_StandartMaliyetKarsiHesabi) Bakiye_StandartMaliyetKarsiHesabi, C.U_SNT_StandartMaliyetYediliKarsiHesaplar, (SELECT SUM(X.Debit) - SUM(X.Credit) FROM JDT1 X WITH(NOLOCK) WHERE X.RefDate BETWEEN @BASTAR  AND @BITTAR AND X.Account=C.U_SNT_StandartMaliyetYediliKarsiHesaplar) Bakiye_YediliKarsiHesaplar  FROM OJDT A WITH(NOLOCK) INNER JOIN JDT1 B WITH(NOLOCK) ON A.TransId=B.TransId INNER JOIN OACT C WITH(NOLOCK) ON B.Account=C.AcctCode LEFT OUTER JOIN OACT T1 WITH(NOLOCK) ON C.U_SNT_StandartMaliyetKarsiHesabi=T1.AcctCode LEFT OUTER JOIN OACT T2 WITH(NOLOCK) ON C.U_SNT_StandartMaliyetYediliKarsiHesaplar=T2.AcctCode LEFT OUTER JOIN OACT T3 WITH(NOLOCK) ON C.FatherNum=T3.AcctCode LEFT OUTER JOIN OOCR T4 WITH(NOLOCK) ON B.ProfitCode=T4.OcrCode AND T4.DimCode=1 WHERE B.Account LIKE '373%' AND A.RefDate BETWEEN @BASTAR  AND @BITTAR AND A.TransType NOT IN (60) GROUP BY B.Account, C.AcctName, C.U_SNT_StandartMaliyetKarsiHesabi, C.U_SNT_StandartMaliyetYediliKarsiHesaplar, B.ProfitCode, T4.OcrName ORDER BY 1 --AND A.TransType IN (1470000071)  FOR BROWSE
+/*
+  Standard Cost vs Actual Account Balances
+  ----------------------------------------
+  - Filters transactions for accounts starting with '373'
+  - Compares balances against standard cost counterpart accounts
+  - Allows filtering by date range parameters (@StartDate, @EndDate)
+*/
+
+DECLARE @StartDate DATE;
+DECLARE @EndDate   DATE;
+
+-- Dynamic Date Parameters (replace with actual values if needed)
+SET @StartDate = /* Header.RefDate */ '[%0]';
+SET @EndDate   = /* Header.RefDate */ '[%1]';
+
+-- Example static dates for testing:
+-- SET @StartDate = '2023-01-01';
+-- SET @EndDate   = '2023-01-31';
+
+SELECT  
+    L.[Account]                                    AS [AccountCode],
+    A.[AcctName]                                   AS [AccountName],
+    L.[ProfitCode]                                 AS [ProfitCenterCode],
+    PC.[OcrName]                                   AS [ProfitCenterName],
+
+    SUM(L.[Debit])                                 AS [TotalDebit],
+    SUM(L.[Credit])                                AS [TotalCredit],
+    SUM(L.[Debit]) - SUM(L.[Credit])               AS [Balance],
+
+    A.[U_STD_CostCounterAccount]                   AS [StandardCostCounterAccount],
+    (
+        SELECT SUM(X.[Debit]) - SUM(X.[Credit])
+        FROM dbo.JDT1 X WITH(NOLOCK)
+        WHERE X.[RefDate] BETWEEN @StartDate AND @EndDate
+          AND X.[Account] = A.[U_STD_CostCounterAccount]
+    ) AS [Balance_StdCostCounterAccount],
+
+    A.[U_STD_CostGroupAccounts]                    AS [StandardCostGroupAccounts],
+    (
+        SELECT SUM(X.[Debit]) - SUM(X.[Credit])
+        FROM dbo.JDT1 X WITH(NOLOCK)
+        WHERE X.[RefDate] BETWEEN @StartDate AND @EndDate
+          AND X.[Account] = A.[U_STD_CostGroupAccounts]
+    ) AS [Balance_GroupAccounts]
+
+FROM dbo.OJDT H WITH(NOLOCK)
+INNER JOIN dbo.JDT1 L WITH(NOLOCK) ON H.[TransId] = L.[TransId]
+INNER JOIN dbo.OACT A WITH(NOLOCK) ON L.[Account] = A.[AcctCode]
+LEFT JOIN  dbo.OACT ACC1 WITH(NOLOCK) ON A.[U_STD_CostCounterAccount] = ACC1.[AcctCode]
+LEFT JOIN  dbo.OACT ACC2 WITH(NOLOCK) ON A.[U_STD_CostGroupAccounts] = ACC2.[AcctCode]
+LEFT JOIN  dbo.OACT PARENT WITH(NOLOCK) ON A.[FatherNum] = PARENT.[AcctCode]
+LEFT JOIN  dbo.OOCR PC WITH(NOLOCK) ON L.[ProfitCode] = PC.[OcrCode] AND PC.[DimCode] = 1
+
+WHERE 
+    L.[Account] LIKE '373%'               -- Filter specific account group
+    AND H.[RefDate] BETWEEN @StartDate AND @EndDate
+    AND H.[TransType] NOT IN (60)         -- Exclude specific transaction types
+
+GROUP BY 
+    L.[Account], 
+    A.[AcctName], 
+    A.[U_STD_CostCounterAccount], 
+    A.[U_STD_CostGroupAccounts], 
+    L.[ProfitCode], 
+    PC.[OcrName]
+
+ORDER BY [AccountCode];
+
+/* 
+-- Optional: to filter specific TransTypes
+-- AND H.[TransType] IN (1470000071)
+*/
