@@ -1,1 +1,18 @@
-SELECT      MONTH(T0.DocDueDate) AS [Ay],     YEAR(T0.DocDueDate) AS [Yıl],     SUM(T0.DocTotal) AS [Tahmini Nakit Girişi] FROM      ORDR T0 WHERE      T0.DocStatus = 'O' -- Açık siparişler GROUP BY      YEAR(T0.DocDueDate), MONTH(T0.DocDueDate) ORDER BY      YEAR(T0.DocDueDate), MONTH(T0.DocDueDate)
+/*
+  Projected Cash Inflow by Month & Year
+  - Based on due date of open sales orders
+  - Safe & generic version for public repositories
+*/
+
+SELECT
+    YEAR(SO.DocDueDate)   AS [Year],
+    MONTH(SO.DocDueDate)  AS [Month],
+    SUM(SO.DocTotal)      AS [ProjectedCashInflow]
+FROM dbo.ORDR AS SO
+WHERE SO.DocStatus = 'O'   -- only open sales orders
+GROUP BY
+    YEAR(SO.DocDueDate),
+    MONTH(SO.DocDueDate)
+ORDER BY
+    [Year],
+    [Month];
