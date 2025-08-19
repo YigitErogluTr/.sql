@@ -1,1 +1,30 @@
-SELECT      T1.[Account] AS Hesap_Kodu,      T2.[AcctName],      T2.[ActCurr],      MONTH(T0.[TaxDate]) AS Ay,     SUM(T1.[Debit]) AS "Aylık Toplam Borç",      SUM(T1.[Credit]) AS "Aylık Toplam Alacak" FROM      OJDT T0   INNER JOIN      JDT1 T1 ON T0.[TransId] = T1.[TransId]  INNER JOIN      OACT T2 ON T1.[Account] = T2.[AcctCode]  WHERE      T1.[Account] LIKE N'193-01-01-002%' OR     T1.[Account] LIKE N'770-01-01-021%' OR     T1.[Account] LIKE N'656%' OR     T1.[Account] LIKE N'646%' OR     T1.[Account] LIKE N'642%' OR     T1.[Account] LIKE N'780%' GROUP BY      T1.[Account],      T2.[AcctName],      T2.[ActCurr],      MONTH(T0.[TaxDate])
+/*
+  Monthly Debit / Credit Summary by Selected Accounts
+  - Filters specific accounts by code patterns
+  - Groups by account, account name, currency and month
+*/
+
+SELECT
+    L.[Account]              AS [AccountCode],
+    A.[AcctName]             AS [AccountName],
+    A.[ActCurr]              AS [AccountCurrency],
+    MONTH(H.[TaxDate])       AS [Month],
+    SUM(L.[Debit])           AS [MonthlyTotalDebit],
+    SUM(L.[Credit])          AS [MonthlyTotalCredit]
+FROM dbo.OJDT AS H
+INNER JOIN dbo.JDT1 AS L
+        ON H.[TransId] = L.[TransId]
+INNER JOIN dbo.OACT AS A
+        ON L.[Account] = A.[AcctCode]
+WHERE
+    L.[Account] LIKE N'XXX-01-01-001%' OR
+    L.[Account] LIKE N'YYY-01-01-002%' OR
+    L.[Account] LIKE N'ABC%' OR
+    L.[Account] LIKE N'DEF%' OR
+    L.[Account] LIKE N'GHI%' OR
+    L.[Account] LIKE N'JKL%'
+GROUP BY
+    L.[Account],
+    A.[AcctName],
+    A.[ActCurr],
+    MONTH(H.[TaxDate]);
