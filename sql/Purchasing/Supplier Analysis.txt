@@ -1,1 +1,110 @@
-SELECT      OPDN.DocEntry AS 'Mal Kabul No',     OPDN.DocDate AS 'Mal Kabul Tarihi',     T0.DocNum AS 'Satınalma No',     T0.DocDate AS 'Satınalma Belge Tarihi',     T0.DocDueDate AS 'Planlanan Mal Kabul Tarihi',     OPDN.U_H1_eIrsaliyeNo AS 'E-İrs No',      T0.U_H1_BelgeTipiSA AS 'Satın alma Belge Tipi',     T0.CardCode AS 'Muhatap Kodu',     T0.CardName AS 'Muhatap Adı',      CRD1.Country AS 'Ülke Kodu',     OCRY.Name AS 'Ülke Adı',       T0.SlpCode AS 'Satınalmacı Kodu',     OSLP.SlpName AS 'Satınalmacı',     OITB.ItmsGrpNam AS 'Kalem Grubu',     OITM.U_stokkodgrup AS 'Ürün Grubu',     PDN1.ItemCode AS 'Stok Kodu',     PDN1.Dscription AS 'Stok Tanımı',     OITM.[U_boyolcusu] AS 'Kalınlık (MIC)',     OITM.[U_enolcusu] AS 'Uzunluk (CM)',     PDN1.WhsCode AS 'Mal Kabul Deposu',     PDN1.VatGroup AS 'Vergi Kodu',     OVTG.Rate AS 'Vergi Oranı',     POR1.Quantity AS 'Sipariş Miktarı',     POR1.InvQty AS 'Envanter Ölçü Birimi Miktarı',      POR1.UomCode AS 'Satınalma Siparişi Ölçü Birimi',     PDN1.Quantity AS 'Mal Kabul Miktarı',     PDN1.InvQty AS 'Envanter Ölçü Birimi Miktarı',      PDN1.UomCode AS 'Mal Kabul Siparişi Ölçü Birimi' ,     POR1.OpenQty AS 'Açık Miktar',     POR1.UnitMsr AS 'Ölçü Birimi',     T0.DocCur AS 'Belge Para Birimi',     T0.DocRate AS 'Satınalma Siparişi Belge Kur',     POR1.Rate AS 'Satınalma Sipariş Satır Kur',     PDN1.Rate AS 'Mal Kabul Satır Kur',     POR1.Price AS 'Satınalma Siparişi Birim Fiyat',     PDN1.Price AS 'Mal Kabul Birim Fiyat',     POR1.LineTotal AS 'Satınalma Satır Toplamı TL',     POR1.TotalFrgn AS 'Satınalma Satır Toplamı YPB',     POR1.TotalSumSy AS 'Satınalma Satır Toplamı SPB',     PDN1.LineTotal AS 'Mal Kabul Satır Toplamı TL',     PDN1.TotalFrgn AS 'Mal Kabul Satır Toplamı YPB',     PDN1.TotalSumSy AS 'Mal Kabul Satır Toplamı SPB',     PDN1.OpenSum AS 'Açık Miktar Satır Toplamı TL',      PDN1.OpenSumFC AS 'Açık Miktar Satır Toplamı YPB',     PDN1.OpenSumSys AS 'Açık Miktar Satır Toplamı SPB',      PDN1.VatSum AS 'Mal Kabul Vergi TL',      PDN1.VatSumFrgn AS 'Mal Kabul Vergi YPB',     PDN1.VatSumSy AS 'Mal Kabul Vergi SPB',     T0.Comments AS 'Satınalma Siparişi Açıklamaları'  FROM      OPDN INNER JOIN PDN1 ON OPDN.DocEntry = PDN1.DocEntry LEFT JOIN POR1 ON PDN1.BaseEntry = POR1.DocEntry      AND PDN1.BaseType = POR1.ObjType      AND PDN1.ItemCode = POR1.ItemCode   LEFT JOIN OPOR T0 ON POR1.DocEntry = T0.DocEntry INNER JOIN OCRD ON T0.CardCode = OCRD.CardCode   INNER JOIN CRD1 ON OCRD.CardCode = CRD1.CardCode  INNER JOIN OCRY ON CRD1.Country = OCRY.Code   LEFT JOIN OITM ON PDN1.ItemCode = OITM.ItemCode   LEFT JOIN OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod   LEFT JOIN OVTG ON PDN1.VatGroup = OVTG.Code  LEFT JOIN OSLP ON T0.SlpCode = OSLP.SlpCode  WHERE      T0.CANCELED <> 'Y'     AND OPDN.CANCELED <> 'Y'     AND T0.DocDate BETWEEN [%0] AND [%1] ORDER BY      OPDN.DocNum
+/* Purchasing — Supplier Analysis (Anonymized) */
+SELECT
+    GR.DocEntry                                            AS [Goods Receipt No],
+    GR.DocDate                                             AS [Goods Receipt Date],
+    PO.DocNum                                              AS [Purchase Order No],
+    PO.DocDate                                             AS [PO Document Date],
+    PO.DocDueDate                                          AS [Planned Receipt Date],
+
+    -- e-Dispatch / e-Despatch Number (hashed for anonymization)
+    CONVERT(varchar(64), HASHBYTES('SHA2_256', CAST(GR.U_H1_eIrsaliyeNo AS nvarchar(200))), 2)
+                                                           AS [e-Dispatch No (Hashed)],
+
+    PO.U_H1_BelgeTipiSA                                    AS [PO Document Type],
+
+    -- Business Partner (hashed for anonymization)
+    CONVERT(varchar(64), HASHBYTES('SHA2_256', CAST(PO.CardCode AS nvarchar(200))), 2)
+                                                           AS [BP Code (Hashed)],
+    CONVERT(varchar(64), HASHBYTES('SHA2_256', CAST(PO.CardName AS nvarchar(200))), 2)
+                                                           AS [BP Name (Hashed)],
+
+    -- Country info (kept as is)
+    ADR.Country                                            AS [Country Code],
+    CNT.Name                                               AS [Country Name],
+
+    -- Buyer / Salesperson on PO (hashed for anonymization)
+    CONVERT(varchar(64), HASHBYTES('SHA2_256', CAST(PO.SlpCode AS nvarchar(200))), 2)
+                                                           AS [Buyer Code (Hashed)],
+    CONVERT(varchar(64), HASHBYTES('SHA2_256', CAST(SLP.SlpName AS nvarchar(200))), 2)
+                                                           AS [Buyer Name (Hashed)],
+
+    ITB.ItmsGrpNam                                         AS [Item Group],
+    ITM.U_stokkodgrup                                      AS [Product Group],
+
+    GRL.ItemCode                                           AS [Item Code],
+    GRL.Dscription                                         AS [Item Description],
+    ITM.U_boyolcusu                                        AS [Thickness (MIC)],
+    ITM.U_enolcusu                                         AS [Length (CM)],
+
+    GRL.WhsCode                                            AS [Receipt Warehouse],
+    GRL.VatGroup                                           AS [VAT Code],
+    VAT.Rate                                               AS [VAT Rate],
+
+    POL.Quantity                                           AS [PO Quantity],
+    POL.InvQty                                             AS [PO Inventory UoM Quantity],
+    POL.UomCode                                            AS [PO UoM],
+
+    GRL.Quantity                                           AS [Receipt Quantity],
+    GRL.InvQty                                             AS [Receipt Inventory UoM Quantity],
+    GRL.UomCode                                            AS [Receipt UoM],
+
+    POL.OpenQty                                            AS [Open Quantity],
+    POL.UnitMsr                                            AS [PO Unit of Measure],
+
+    PO.DocCur                                              AS [PO Document Currency],
+    PO.DocRate                                             AS [PO Document Rate],
+    POL.Rate                                               AS [PO Line Rate],
+    GRL.Rate                                               AS [Receipt Line Rate],
+
+    POL.Price                                              AS [PO Unit Price],
+    GRL.Price                                              AS [Receipt Unit Price],
+
+    POL.LineTotal                                          AS [PO Line Total (LC)],
+    POL.TotalFrgn                                          AS [PO Line Total (FC)],
+    POL.TotalSumSy                                         AS [PO Line Total (SC)],
+
+    GRL.LineTotal                                          AS [Receipt Line Total (LC)],
+    GRL.TotalFrgn                                          AS [Receipt Line Total (FC)],
+    GRL.TotalSumSy                                         AS [Receipt Line Total (SC)],
+
+    GRL.OpenSum                                            AS [Open Amount (LC)],
+    GRL.OpenSumFC                                          AS [Open Amount (FC)],
+    GRL.OpenSumSys                                         AS [Open Amount (SC)],
+
+    GRL.VatSum                                             AS [Receipt VAT (LC)],
+    GRL.VatSumFrgn                                         AS [Receipt VAT (FC)],
+    GRL.VatSumSy                                           AS [Receipt VAT (SC)],
+
+    PO.Comments                                            AS [PO Comments]
+
+FROM OPDN AS GR
+INNER JOIN PDN1 AS GRL
+        ON GR.DocEntry = GRL.DocEntry
+LEFT  JOIN POR1 AS POL
+        ON GRL.BaseEntry = POL.DocEntry
+       AND GRL.BaseType  = POL.ObjType
+       AND GRL.ItemCode  = POL.ItemCode
+LEFT  JOIN OPOR AS PO
+        ON POL.DocEntry  = PO.DocEntry
+INNER JOIN OCRD AS BP
+        ON PO.CardCode   = BP.CardCode
+INNER JOIN CRD1 AS ADR
+        ON BP.CardCode   = ADR.CardCode
+INNER JOIN OCRY AS CNT
+        ON ADR.Country   = CNT.Code
+LEFT  JOIN OITM AS ITM
+        ON GRL.ItemCode  = ITM.ItemCode
+LEFT  JOIN OITB AS ITB
+        ON ITM.ItmsGrpCod = ITB.ItmsGrpCod
+LEFT  JOIN OVTG AS VAT
+        ON GRL.VatGroup  = VAT.Code
+LEFT  JOIN OSLP AS SLP
+        ON PO.SlpCode    = SLP.SlpCode
+
+WHERE
+    PO.CANCELED  <> 'Y'
+    AND GR.CANCELED <> 'Y'
+    AND PO.DocDate BETWEEN [%0] AND [%1]
+
+ORDER BY
+    GR.DocNum;
