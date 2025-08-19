@@ -1,1 +1,37 @@
-SELECT      T0.DocDueDate,     T0.TaxDate,     T0.DocEntry AS [Belge No],     T0.CardName,     T1.ItemCode AS [Ürün Kodu],     T2.ItemName AS [Ürün Adı],     T1.WhsCode AS [Depo Kodu],     T1.Quantity AS [Sipariş Miktarı],     T3.OnHand AS [Depodaki Mevcut Miktar],     T3.OnHand - T1.Quantity AS [Kullanılabilir Stok Miktarı],     CASE         WHEN T3.OnHand - T1.Quantity >= 0 THEN 'YETERLİ STOK'         ELSE 'YETERSİZ STOK'     END AS [Stok Durumu] FROM      OWTQ T0  -- İşlem talepleri başlık tablosu INNER JOIN      WTQ1 T1 ON T0.DocEntry = T1.DocEntry  -- İşlem talepleri satırları INNER JOIN      OITM T2 ON T1.ItemCode = T2.ItemCode  -- Ürün bilgileri tablosu INNER JOIN      OITW T3 ON T1.ItemCode = T3.ItemCode AND T1.WhsCode = T3.WhsCode  -- Depo bilgileri tablosu WHERE      T0.DocStatus = 'O'     AND T2.InvntItem = 'Y' ORDER BY      T0.DocEntry
+/*
+  Stock Transfer Requests vs. Warehouse Stock
+  - Shows whether available stock is sufficient to cover open transfer requests
+  - Excludes non-inventory items
+*/
+
+SELECT
+    H.[DocDueDate]                 AS [DueDate],
+    H.[TaxDate]                    AS [DocumentDate],
+    H.[DocEntry]                   AS [RequestNo],
+    H.[CardName]                   AS [RequesterName],   -- if used; may be empty in some setups
+
+    L.[ItemCode]                   AS [ItemCode],
+    I.[ItemName]                   AS [ItemName],
+    L.[WhsCode]                    AS [WarehouseCode],
+
+    L.[Quantity]                   AS [RequestedQty],
+    W.[OnHand]                     AS [StockOnHand],
+    (W.[OnHand] - L.[Quantity])    AS [AvailableAfterRequest],
+
+    CASE
+        WHEN W.[OnHand] - L.[Quantity] >= 0 THEN 'STOCK SUFFICIENT'
+        ELSE 'STOCK INSUFFICIENT'
+    END                            AS [StockStatus]
+
+FROM dbo.OWTQ AS H              -- Stock Transfer Request (header)
+INNER JOIN dbo.WTQ1 AS L ON H.[DocEntry] = L.[DocEntry]     -- Request lines
+INNER JOIN dbo.OITM AS I ON L.[ItemCode] = I.[ItemCode]     -- Item master
+INNER JOIN dbo.OITW AS W ON L.[ItemCode] = W.[ItemCode]     -- Warehouse stock
+                       AND L.[WhsCode]  = W.[WhsCode]
+
+WHERE
+    H.[DocStatus] = 'O'           -- Open requests only
+    AND I.[InvntItem] = 'Y'       -- Inventory items only
+
+ORDER BY
+    H.[DocEntry];
