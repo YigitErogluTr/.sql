@@ -1,1 +1,49 @@
-SELECT      T2.ItemCode AS "Kalem Kodu",      OITM.ItemName AS "Kalem Tanımı",       T2.LocCode AS "Depo",      T4.DistNumber AS "Parti Numarası",      SUM(T3.Quantity) AS "Stok",      CASE          WHEN T4.Quantity > 0 THEN T4.CostTotal / T4.Quantity          ELSE 0      END AS "Maliyet",     SUM(T3.Quantity) *          (CASE              WHEN T4.Quantity > 0 THEN T4.CostTotal / T4.Quantity              ELSE 0          END) AS "Toplam Maliyet",     OITB.ItmsGrpNam AS "Malzeme Grubu",     OITM.InvntryUom AS "Stok Takip Birimi",     OITM.ItmsGrpCod FROM      OITL T2 WITH (NOLOCK) LEFT OUTER JOIN      ITL1 T3 WITH (NOLOCK) ON T2.LogEntry = T3.LogEntry AND T2.ItemCode = T3.ItemCode LEFT OUTER JOIN      OBTN T4 WITH (NOLOCK) ON T3.ItemCode = T4.ItemCode AND T3.SysNumber = T4.SysNumber LEFT OUTER JOIN      OITM ON T2.ItemCode = OITM.ItemCode LEFT OUTER JOIN      OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod WHERE      COALESCE(T4.DistNumber, '') != '' GROUP BY      T2.ItemCode, T2.LocCode, T4.DistNumber, T4.CostTotal, T4.Quantity,      OITM.ItemName, OITM.ItmsGrpCod, OITB.ItmsGrpNam, OITM.InvntryUom HAVING      SUM(T3.Quantity) > 0  ORDER BY        T2.ItemCode, T2.LocCode, T4.DistNumber
+/* Batch on-hand and valuation by item / warehouse / batch (positive balances only) */
+
+SELECT
+    tl.ItemCode                                      AS ItemCode,
+    itm.ItemName                                     AS ItemDescription,
+    tl.LocCode                                       AS WarehouseCode,
+    btn.DistNumber                                   AS BatchNumber,
+    SUM(tl1.Quantity)                                AS OnHandQty,
+    CASE
+        WHEN btn.Quantity > 0 THEN btn.CostTotal / btn.Quantity
+        ELSE 0
+    END                                              AS UnitCost,
+    SUM(tl1.Quantity) *
+        CASE
+            WHEN btn.Quantity > 0 THEN btn.CostTotal / btn.Quantity
+            ELSE 0
+        END                                          AS InventoryValue,
+    itb.ItmsGrpNam                                   AS ItemGroup,
+    itm.InvntryUom                                   AS InventoryUoM,
+    itm.ItmsGrpCod                                   AS ItemGroupCode
+FROM OITL AS tl WITH (NOLOCK)
+LEFT JOIN ITL1 AS tl1 WITH (NOLOCK)
+    ON tl.LogEntry = tl1.LogEntry
+   AND tl.ItemCode = tl1.ItemCode
+LEFT JOIN OBTN AS btn WITH (NOLOCK)
+    ON tl1.ItemCode  = btn.ItemCode
+   AND tl1.SysNumber = btn.SysNumber
+LEFT JOIN OITM AS itm WITH (NOLOCK)
+    ON tl.ItemCode = itm.ItemCode
+LEFT JOIN OITB AS itb WITH (NOLOCK)
+    ON itm.ItmsGrpCod = itb.ItmsGrpCod
+WHERE
+    COALESCE(btn.DistNumber, '') <> ''
+GROUP BY
+    tl.ItemCode,
+    tl.LocCode,
+    btn.DistNumber,
+    btn.CostTotal,
+    btn.Quantity,
+    itm.ItemName,
+    itm.ItmsGrpCod,
+    itb.ItmsGrpNam,
+    itm.InvntryUom
+HAVING
+    SUM(tl1.Quantity) > 0
+ORDER BY
+    ItemCode,
+    WarehouseCode,
+    BatchNumber;
