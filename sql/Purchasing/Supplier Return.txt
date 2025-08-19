@@ -1,1 +1,50 @@
-SELECT     ORPD.DocEntry,     RPD1.ItemCode AS [Ürün Kodu],     RPD1.Dscription AS [Ürün Adı],     ORPD.NumAtCard,     ORPD.U_H1_eIrsaliyeNo,     ORPD.CardName AS [Tedarikçi Adı],     RPD1.Quantity AS [İade Miktarı],     RPD1.UomCode AS [Birim],     RPD1.Price AS [İade Birim Fiyatı],     RPD1.Currency AS [Para Birimi],     RPD1.Rate AS [Kur],          CAST(         RPD1.Quantity * RPD1.Price *          CASE              WHEN RPD1.Currency = 'TRY' OR ISNULL(RPD1.Rate, 0) = 0 THEN 1              ELSE RPD1.Rate          END          AS DECIMAL(18,2)     ) AS [Toplam Tutar (TL)],      ORPD.DocDate AS [İade Tarihi],     RPD1.InvQty as 'Stok Ölçü Birim Miktarı',     RPD1.UomCode2 as 'Stok Ölçü Birimi',     CASE          WHEN RPD1.BaseType = 20 THEN 'Satıcı Faturası'         WHEN RPD1.BaseType = 234000032 THEN 'İade Talebi'         ELSE CAST(RPD1.BaseType AS VARCHAR)     END AS [Temel Belge Türü],      RPD1.BaseEntry AS [Temel Belge No],          U1.U_NAME AS [İadeyi Oluşturan Kullanıcı]  FROM      ORPD INNER JOIN      RPD1 ON ORPD.DocEntry = RPD1.DocEntry LEFT JOIN      OUSR U1 ON ORPD.UserSign = U1.USERID WHERE      ORPD.CANCELED = 'N' ORDER BY      ORPD.DocDate DESC, ORPD.DocNum
+-- Supplier Return Report
+-- Shows return documents with item, supplier, pricing, and base document details
+
+SELECT  
+    RT.DocEntry,  
+    RTL.ItemCode       AS [Product Code],  
+    RTL.Dscription     AS [Product Name],  
+    RT.NumAtCard       AS [Supplier Ref No],  
+    RT.U_H1_eIrsaliyeNo AS [E-Dispatch No],  
+    RT.CardName        AS [Supplier Name],  
+    RTL.Quantity       AS [Return Quantity],  
+    RTL.UomCode        AS [Unit],  
+    RTL.Price          AS [Return Unit Price],  
+    RTL.Currency       AS [Currency],  
+    RTL.Rate           AS [Exchange Rate],  
+
+    -- Local currency calculation (TRY)
+    CAST(  
+        RTL.Quantity * RTL.Price *  
+        CASE  
+            WHEN RTL.Currency = 'TRY' OR ISNULL(RTL.Rate, 0) = 0 THEN 1  
+            ELSE RTL.Rate  
+        END  
+        AS DECIMAL(18,2)  
+    ) AS [Total Amount (LC)],  
+
+    RT.DocDate         AS [Return Date],  
+    RTL.InvQty         AS [Inventory Quantity],  
+    RTL.UomCode2       AS [Inventory Unit],  
+
+    CASE  
+        WHEN RTL.BaseType = 20 THEN 'AP Invoice'  
+        WHEN RTL.BaseType = 234000032 THEN 'Return Request'  
+        ELSE CAST(RTL.BaseType AS VARCHAR)  
+    END AS [Base Document Type],  
+
+    RTL.BaseEntry      AS [Base Document No],  
+    U1.U_NAME          AS [Created By User]  
+
+FROM  
+    ORPD RT  
+    INNER JOIN RPD1 RTL ON RT.DocEntry = RTL.DocEntry  
+    LEFT JOIN OUSR U1 ON RT.UserSign = U1.USERID  
+
+WHERE  
+    RT.CANCELED = 'N'  
+
+ORDER BY  
+    RT.DocDate DESC,  
+    RT.DocNum;
