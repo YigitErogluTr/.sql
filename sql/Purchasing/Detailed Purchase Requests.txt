@@ -1,1 +1,28 @@
-SELECT T1.[DocStatus] , T1.[ReqName] AS 'Talep Eden' ,T1.[DocNum] AS 'Belge numarası', T1.[DocDueDate] AS 'Teslim Tarihi', T1.[TaxDate] AS 'Belge tarihi', T0.[ItemCode] AS 'Kalem numarası', T0.[Dscription] AS 'Kalem/hizmet tanımı', T0.[Quantity] AS 'Miktar', T0.[OpenCreQty] AS 'Açık Miktar', T0.[WhsCode] AS 'Depo kodu', T1.[Comments] AS 'Açıklamalar', T0.[Text] AS 'Kalem ayrıntıları' FROM  [dbo].[PRQ1] T0  INNER  JOIN [dbo].[OPRQ] T1  ON  T1.[DocEntry] = T0.[DocEntry]
+/*
+  Purchase Requests - Header + Lines
+  - Shows request status, requester, dates, item, open qty, warehouse, notes
+  - Safe/clean aliases for public repositories
+*/
+
+SELECT
+    H.[DocStatus]        AS [RequestStatus],
+    H.[ReqName]          AS [RequestedBy],
+    H.[DocNum]           AS [RequestNumber],
+    H.[DocDueDate]       AS [RequiredDate],
+    H.[TaxDate]          AS [DocumentDate],
+
+    L.[ItemCode]         AS [ItemCode],
+    L.[Dscription]       AS [ItemDescription],
+    L.[Quantity]         AS [Quantity],
+    L.[OpenCreQty]       AS [OpenQuantity],
+    L.[WhsCode]          AS [WarehouseCode],
+
+    H.[Comments]         AS [HeaderComments],
+    L.[Text]             AS [LineNotes]
+FROM dbo.PRQ1 AS L        -- Purchase Request Lines
+INNER JOIN dbo.OPRQ AS H   -- Purchase Request Header
+        ON H.[DocEntry] = L.[DocEntry]
+-- WHERE H.[DocStatus] = 'O'   -- uncomment to show only OPEN requests
+ORDER BY
+    H.[DocNum],
+    L.[LineNum];
