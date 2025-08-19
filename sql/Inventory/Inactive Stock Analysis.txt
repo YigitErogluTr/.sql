@@ -1,1 +1,19 @@
-SELECT      T2.[ItmsGrpNam],     T0.ItemCode AS [Stok Kodu],     T0.ItemName AS [Stok Adı],     T1.OnHand AS [Mevcut Miktar],     (SELECT MAX(DocDate)       FROM OINM       WHERE OINM.ItemCode = T0.ItemCode) AS [Son Hareket Tarihi] FROM      OITM T0 INNER JOIN      OITW T1 ON T0.ItemCode = T1.ItemCode INNER JOIN  OITB T2 ON T0.[ItmsGrpCod] = T2.[ItmsGrpCod] WHERE      T1.OnHand > 0 ORDER BY     [Son Hareket Tarihi] ASC
+/* Items with positive on-hand and their last inventory movement date */
+
+SELECT
+    ig.ItmsGrpNam                           AS ItemGroupName,
+    i.ItemCode                              AS ItemCode,
+    i.ItemName                              AS ItemName,
+    w.OnHand                                AS OnHandQuantity,
+    (
+        SELECT MAX(m.DocDate)
+        FROM dbo.OINM AS m
+        WHERE m.ItemCode = i.ItemCode
+    )                                       AS LastMovementDate
+FROM dbo.OITM AS i
+INNER JOIN dbo.OITW AS w
+    ON i.ItemCode = w.ItemCode
+INNER JOIN dbo.OITB AS ig
+    ON i.ItmsGrpCod = ig.ItmsGrpCod
+WHERE w.OnHand > 0
+ORDER BY LastMovementDate ASC;
