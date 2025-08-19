@@ -1,1 +1,28 @@
-SELECT      T0.[DocNum],     T0.[DocType],      T0.[Canceled],      T0.[TaxDate],      T0.[CardCode],      T0.[CardName],      T0.[DocRate],     T0.[DocCurr],     T0.[TrsfrAcct],      T0.[TrsfrSum],      T0.[CheckAcct] as [Çek Cari Hesabı],      T0.[CheckSum],      T1.[DueDate],     T0.[CashAcct],      T0.[CashSum],     T0.[CreditSum] as [Kredi Toplamı],     T0.[Comments] FROM      OVPM T0 LEFT JOIN      VPM1 T1 ON T0.[DocNum] = T1.[DocNum] WHERE      T0.[Canceled] = 'N'
+/*
+  Outgoing Payments (Active Only)
+  - Lists vendor payments and related details
+  - Safe, tidy version for public repositories
+*/
+
+SELECT
+    P.[DocNum]      AS [DocumentNumber],
+    P.[DocType]     AS [DocumentType],
+    P.[Canceled]    AS [IsCanceled],
+    P.[TaxDate]     AS [PostingDate],
+    P.[CardCode]    AS [BusinessPartnerCode],
+    P.[CardName]    AS [BusinessPartnerName],
+    P.[DocRate]     AS [ExchangeRate],
+    P.[DocCurr]     AS [Currency],
+    P.[TrsfrAcct]   AS [TransferAccount],
+    P.[TrsfrSum]    AS [TransferAmount],
+    P.[CheckAcct]   AS [CheckAccount],
+    P.[CheckSum]    AS [CheckAmount],
+    L.[DueDate]     AS [DueDate],
+    P.[CashAcct]    AS [CashAccount],
+    P.[CashSum]     AS [CashAmount],
+    P.[CreditSum]   AS [CreditTotal],
+    P.[Comments]    AS [Remarks]
+FROM dbo.OVPM AS P
+LEFT JOIN dbo.VPM1 AS L
+       ON P.[DocNum] = L.[DocNum]
+WHERE P.[Canceled] = 'N';
