@@ -1,1 +1,88 @@
-WITH PartiTakibi AS (     SELECT          'EGEMEN' AS ŞİRKET,         T2.ItemCode AS KalemKodu,          OITM.ItemName AS KalemTanimi,           T2.LocCode AS Depo,          T4.DistNumber AS PartiNumarasi,          SUM(T3.Quantity) AS Stok,          CASE              WHEN ISNULL(T4.Quantity, 0) > 0 THEN T4.CostTotal / T4.Quantity              ELSE 0          END AS Maliyet,         SUM(T3.Quantity) *              (CASE                  WHEN ISNULL(T4.Quantity, 0) > 0 THEN T4.CostTotal / T4.Quantity                  ELSE 0              END) AS ToplamMaliyet,         OITB.ItmsGrpNam AS MalzemeGrubu,         OITM.InvntryUom AS StokTakipBirimi     FROM          OITL T2 WITH (NOLOCK)     LEFT OUTER JOIN          ITL1 T3 WITH (NOLOCK) ON T2.LogEntry = T3.LogEntry AND T2.ItemCode = T3.ItemCode     LEFT OUTER JOIN          OBTN T4 WITH (NOLOCK) ON T3.ItemCode = T4.ItemCode AND T3.SysNumber = T4.SysNumber     LEFT OUTER JOIN          OITM ON T2.ItemCode = OITM.ItemCode     LEFT OUTER JOIN          OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod     WHERE          COALESCE(T4.DistNumber, '') != ''         AND OITM.ItmsGrpCod NOT IN (108,109, 113,114,116)     GROUP BY          T2.ItemCode, T2.LocCode, T4.DistNumber, T4.CostTotal, T4.Quantity,          OITM.ItemName, OITM.ItmsGrpCod, OITB.ItmsGrpNam, OITM.InvntryUom     HAVING          SUM(T3.Quantity) > 0  ), StokTakibi AS (     SELECT          'EGEMEN' AS ŞİRKET,         T0.ItemCode as KalemKodu,          T0.ItemName as KalemTanimi,           T1.WhsCode as Depo,          'PARTİ TAKİBİ YAPILMAMAKTADIR.' AS PartiNumarasi,         T1.OnHand as Stok,          T0.AvgPrice as Maliyet,          (T1.OnHand * T0.AvgPrice) AS ToplamMaliyet,         T2.ItmsGrpNam as MalzemeGrubu,         T0.InvntryUom as StokTakipBirimi     FROM          OITM T0     INNER JOIN OITW T1 ON T0.ItemCode = T1.ItemCode     INNER JOIN OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod       WHERE          T0.ManBtchNum = 'N'         AND T1.OnHand > 0         AND T0.ItmsGrpCod NOT IN (108,109, 113,114,116) ) SELECT      ŞİRKET, KalemKodu, KalemTanimi, Depo, PartiNumarasi, Stok, Maliyet, ToplamMaliyet,      MalzemeGrubu, StokTakipBirimi FROM PartiTakibi UNION ALL SELECT      ŞİRKET, KalemKodu, KalemTanimi, Depo, PartiNumarasi, Stok, Maliyet, ToplamMaliyet,      MalzemeGrubu, StokTakipBirimi FROM StokTakibi ORDER BY      KalemKodu, Depo, PartiNumarasi;
+/* Inventory by batch (lot) vs. non-batch, with unit/total cost per warehouse */
+
+WITH BatchTracking AS (
+    SELECT
+        'COMPANY'                                 AS Company,
+        itl.ItemCode                              AS ItemCode,
+        itm.ItemName                              AS ItemDescription,
+        itl.LocCode                               AS WarehouseCode,
+        btn.DistNumber                            AS BatchNumber,
+        SUM(itl1.Quantity)                        AS OnHandQty,
+        CASE
+            WHEN ISNULL(btn.Quantity, 0) > 0 THEN btn.CostTotal / btn.Quantity
+            ELSE 0
+        END                                       AS UnitCost,
+        SUM(itl1.Quantity) *
+        CASE
+            WHEN ISNULL(btn.Quantity, 0) > 0 THEN btn.CostTotal / btn.Quantity
+            ELSE 0
+        END                                       AS TotalCost,
+        itb.ItmsGrpNam                            AS ItemGroup,
+        itm.InvntryUom                            AS InventoryUoM
+    FROM OITL AS itl WITH (NOLOCK)
+    LEFT JOIN ITL1 AS itl1 WITH (NOLOCK)
+        ON itl.LogEntry = itl1.LogEntry AND itl.ItemCode = itl1.ItemCode
+    LEFT JOIN OBTN AS btn WITH (NOLOCK)
+        ON itl1.ItemCode = btn.ItemCode AND itl1.SysNumber = btn.SysNumber
+    LEFT JOIN OITM AS itm ON itl.ItemCode = itm.ItemCode
+    LEFT JOIN OITB AS itb ON itm.ItmsGrpCod = itb.ItmsGrpCod
+    WHERE
+        COALESCE(btn.DistNumber, '') <> ''
+        AND itm.ItmsGrpCod NOT IN (108, 109, 113, 114, 116)   -- excluded groups
+    GROUP BY
+        itl.ItemCode, itl.LocCode, btn.DistNumber, btn.CostTotal, btn.Quantity,
+        itm.ItemName, itm.ItmsGrpCod, itb.ItmsGrpNam, itm.InvntryUom
+    HAVING
+        SUM(itl1.Quantity) > 0
+),
+NonBatchTracking AS (
+    SELECT
+        'COMPANY'                                 AS Company,
+        itm.ItemCode                              AS ItemCode,
+        itm.ItemName                              AS ItemDescription,
+        itw.WhsCode                               AS WarehouseCode,
+        'NO BATCH TRACKING'                       AS BatchNumber,
+        itw.OnHand                                AS OnHandQty,
+        itm.AvgPrice                              AS UnitCost,
+        itw.OnHand * itm.AvgPrice                 AS TotalCost,
+        itb.ItmsGrpNam                            AS ItemGroup,
+        itm.InvntryUom                            AS InventoryUoM
+    FROM OITM AS itm
+    INNER JOIN OITW AS itw ON itm.ItemCode = itw.ItemCode
+    INNER JOIN OITB AS itb ON itm.ItmsGrpCod = itb.ItmsGrpCod
+    WHERE
+        itm.ManBtchNum = 'N'
+        AND itw.OnHand > 0
+        AND itm.ItmsGrpCod NOT IN (108, 109, 113, 114, 116)   -- excluded groups
+)
+
+SELECT
+    Company,
+    ItemCode,
+    ItemDescription,
+    WarehouseCode,
+    BatchNumber,
+    OnHandQty,
+    UnitCost,
+    TotalCost,
+    ItemGroup,
+    InventoryUoM
+FROM BatchTracking
+
+UNION ALL
+
+SELECT
+    Company,
+    ItemCode,
+    ItemDescription,
+    WarehouseCode,
+    BatchNumber,
+    OnHandQty,
+    UnitCost,
+    TotalCost,
+    ItemGroup,
+    InventoryUoM
+FROM NonBatchTracking
+
+ORDER BY
+    ItemCode, WarehouseCode, BatchNumber;
