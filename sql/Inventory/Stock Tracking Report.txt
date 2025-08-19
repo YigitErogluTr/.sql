@@ -1,1 +1,35 @@
-SELECT      'EGEMEN' AS [Şirket],       T0.[DocDate] as 'Belge Tarihi',      T0.[TransType] as 'Belge Türü Kodu ',      CASE T0.[TransType]         WHEN 20 THEN 'SAS MAl Girişi'         WHEN 59 THEN 'Mal Giriş'         WHEN 60 THEN 'Mal Çıkışı'         WHEN 67 THEN 'Stok Nakli'         WHEN 15 THEN 'Teslimat'         WHEN 21 THEN 'Mal İadesi'         WHEN 69 THEN 'Mal Girişi'         ELSE 'Diğer / Tanımsız'     END AS [Belge Türü Adı],     T0.[BASE_REF] as 'Belge No',      T0.[ItemCode],      T0.[Dscription],      T1.[InvntryUom] AS [Ölçü Birimi],     T0.[InQty],     T0.[OutQty],      T0.[Warehouse],      U.[USER_CODE] AS [Kullanıcı Adı],     T0.[Comments],      T0.[JrnlMemo]  FROM OINM T0  LEFT JOIN OITM T1 ON T0.[ItemCode] = T1.[ItemCode] LEFT JOIN OUSR U ON T0.[UserSign] = U.[USERID] WHERE T0.[Warehouse] IN ('K.PASA', 'ISKKNT')   AND T0.[DocDate] >= CAST(DATEADD(day, -1, CAST(GETDATE() AS date)) AS datetime)   AND T0.[DocDate] < CAST(CAST(GETDATE() AS date) AS datetime)
+/* Stock Transactions Report — Last 24 Hours */
+
+SELECT
+    'COMPANY_NAME'            AS Company,
+    T0.DocDate                AS DocumentDate,
+    T0.TransType              AS DocumentTypeCode,
+    CASE T0.TransType
+        WHEN 20 THEN 'Purchase Goods Receipt'
+        WHEN 59 THEN 'Goods Receipt'
+        WHEN 60 THEN 'Goods Issue'
+        WHEN 67 THEN 'Stock Transfer'
+        WHEN 15 THEN 'Delivery'
+        WHEN 21 THEN 'Goods Return'
+        WHEN 69 THEN 'Goods Receipt'
+        ELSE 'Other / Undefined'
+    END                       AS DocumentTypeName,
+    T0.BaseRef                AS DocumentNumber,
+    T0.ItemCode               AS ItemCode,
+    T0.Dscription             AS ItemDescription,
+    T1.InvntryUom             AS UnitOfMeasure,
+    T0.InQty                  AS InQuantity,
+    T0.OutQty                 AS OutQuantity,
+    T0.Warehouse              AS Warehouse,
+    U.USER_CODE               AS UserName,
+    T0.Comments               AS Comments,
+    T0.JrnlMemo               AS JournalMemo
+FROM OINM AS T0
+LEFT JOIN OITM AS T1 
+       ON T0.ItemCode = T1.ItemCode
+LEFT JOIN OUSR AS U 
+       ON T0.UserSign = U.USERID
+WHERE T0.Warehouse IN ('WAREHOUSE_A', 'WAREHOUSE_B')
+  AND T0.DocDate >= CAST(DATEADD(DAY, -1, CAST(GETDATE() AS DATE)) AS DATETIME)
+  AND T0.DocDate <  CAST(CAST(GETDATE() AS DATE) AS DATETIME)
+ORDER BY T0.DocDate, T0.BaseRef;
