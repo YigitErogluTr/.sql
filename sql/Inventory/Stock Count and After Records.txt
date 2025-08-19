@@ -1,1 +1,64 @@
-SELECT      T0.DocEntry AS BelgeNo,     'Sayim Girişi' AS TabloAdi,     T0.DocDate AS BelgeTarihi,     T1.ItemCode AS UrunKodu,     T2.ItemName AS UrunAdi,     T2.InvntryUom AS StokOlcuBirimi,     T1.Quantity AS Miktar,     T1.Price AS BirimFiyat,     T1.Quantity * T1.Price AS SatirToplami,     NULL AS BaseRef  FROM OIQR T0 INNER JOIN IQR1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN OITM T2 ON T1.ItemCode = T2.ItemCode   UNION ALL  SELECT      T0.DocEntry AS BelgeNo,     'Mal Girişi' AS TabloAdi,     T0.DocDate AS BelgeTarihi,     T1.ItemCode AS UrunKodu,     T2.ItemName AS UrunAdi,     T2.InvntryUom AS StokOlcuBirimi,     T1.Quantity AS Miktar,     T1.Price AS BirimFiyat,     T1.Quantity * T1.Price AS SatirToplami,     NULL AS BaseRef  FROM OIGN T0 INNER JOIN IGN1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN OITM T2 ON T1.ItemCode = T2.ItemCode WHERE  (T1.[BaseRef] IS NULL OR T0.DocEntry = 68868)  UNION ALL  SELECT      T0.DocEntry AS BelgeNo,     'Mal Çıkışı' AS TabloAdi,      T0.DocDate AS BelgeTarihi,     T1.ItemCode AS UrunKodu,     T2.ItemName AS UrunAdi,     T2.InvntryUom AS StokOlcuBirimi,     T1.Quantity * -1 AS Miktar,     T1.Price,     (T1.Quantity * -1) * (T1.Price) AS SatirToplami,     T1.[BaseRef]  FROM OIGE T0 INNER JOIN IGE1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN OITM T2 ON T1.ItemCode = T2.ItemCode WHERE  T1.[BaseRef] IS NULL  ORDER BY BelgeTarihi, BelgeNo
+/* Combined Inventory Transactions: Stock Count, Goods Receipt, Goods Issue */
+
+SELECT
+    q.DocEntry                  AS DocumentNumber,
+    'Stock Count'               AS SourceTable,
+    q.DocDate                   AS DocumentDate,
+    ql.ItemCode                 AS ItemCode,
+    i.ItemName                  AS ItemName,
+    i.InvntryUom                AS InventoryUoM,
+    ql.Quantity                 AS Quantity,
+    ql.Price                    AS UnitPrice,
+    ql.Quantity * ql.Price      AS LineTotal,
+    NULL                        AS BaseReference
+FROM dbo.OIQR AS q
+INNER JOIN dbo.IQR1 AS ql
+    ON q.DocEntry = ql.DocEntry
+INNER JOIN dbo.OITM AS i
+    ON ql.ItemCode = i.ItemCode
+
+UNION ALL
+
+SELECT
+    gr.DocEntry                 AS DocumentNumber,
+    'Goods Receipt'             AS SourceTable,
+    gr.DocDate                  AS DocumentDate,
+    grl.ItemCode                AS ItemCode,
+    i.ItemName                  AS ItemName,
+    i.InvntryUom                AS InventoryUoM,
+    grl.Quantity                AS Quantity,
+    grl.Price                   AS UnitPrice,
+    grl.Quantity * grl.Price    AS LineTotal,
+    NULL                        AS BaseReference
+FROM dbo.OIGN AS gr
+INNER JOIN dbo.IGN1 AS grl
+    ON gr.DocEntry = grl.DocEntry
+INNER JOIN dbo.OITM AS i
+    ON grl.ItemCode = i.ItemCode
+WHERE
+    (grl.BaseRef IS NULL OR gr.DocEntry = 68868)
+
+UNION ALL
+
+SELECT
+    gi.DocEntry                     AS DocumentNumber,
+    'Goods Issue'                   AS SourceTable,
+    gi.DocDate                      AS DocumentDate,
+    gil.ItemCode                    AS ItemCode,
+    i.ItemName                      AS ItemName,
+    i.InvntryUom                     AS InventoryUoM,
+    gil.Quantity * -1               AS Quantity,
+    gil.Price                       AS UnitPrice,
+    (gil.Quantity * -1) * gil.Price AS LineTotal,
+    gil.BaseRef                     AS BaseReference
+FROM dbo.OIGE AS gi
+INNER JOIN dbo.IGE1 AS gil
+    ON gi.DocEntry = gil.DocEntry
+INNER JOIN dbo.OITM AS i
+    ON gil.ItemCode = i.ItemCode
+WHERE
+    gil.BaseRef IS NULL
+
+ORDER BY
+    DocumentDate,
+    DocumentNumber;
