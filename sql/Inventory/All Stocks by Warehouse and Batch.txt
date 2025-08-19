@@ -1,1 +1,39 @@
-SELECT      T0.ItemCode AS "Kalem Kodu",       T0.ItemName AS "Kalem Tanımı",          O.BatchNum AS "Parti Numarası",      O.WhsCode AS "Depo",      O.Quantity AS "Stok",      T2.ItmsGrpNam AS "Malzeme Grubu",     T0.InvntryUom AS "Stok Takip Birimi" FROM OIBT O   INNER JOIN OITM T0 ON O.ItemCode = T0.ItemCode INNER JOIN OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod WHERE O.Quantity <> 0  UNION ALL  SELECT      T0.ItemCode AS "Kalem Kodu",      T0.ItemName AS "Kalem Tanımı",      'PARTİ TAKİBİ YAPILMAMAKTADIR.' AS "Parti Takibi Durumu",     T1.WhsCode AS "Depo",      T1.OnHand AS "Stok",      T2.ItmsGrpNam AS "Malzeme Grubu",     T0.InvntryUom AS "Stok Takip Birimi" FROM      OITM T0     INNER JOIN OITW T1 ON T0.ItemCode = T1.ItemCode     INNER JOIN OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod   WHERE      T0.ManBtchNum = 'N'     AND T1.OnHand > 0 ORDER BY "Kalem Kodu";
+/* Inventory by batch vs. non-batch items (warehouse-level) */
+
+SELECT
+    itm.ItemCode                    AS ItemCode,
+    itm.ItemName                    AS ItemDescription,
+    oibt.BatchNum                   AS BatchNumber,
+    oibt.WhsCode                    AS WarehouseCode,
+    oibt.Quantity                   AS OnHandQty,
+    itb.ItmsGrpNam                  AS ItemGroup,
+    itm.InvntryUom                  AS InventoryUoM
+FROM OIBT AS oibt
+INNER JOIN OITM AS itm
+    ON oibt.ItemCode = itm.ItemCode
+INNER JOIN OITB AS itb
+    ON itm.ItmsGrpCod = itb.ItmsGrpCod
+WHERE
+    oibt.Quantity <> 0
+
+UNION ALL
+
+SELECT
+    itm.ItemCode                    AS ItemCode,
+    itm.ItemName                    AS ItemDescription,
+    'NO BATCH TRACKING'             AS BatchNumber,
+    itw.WhsCode                     AS WarehouseCode,
+    itw.OnHand                      AS OnHandQty,
+    itb.ItmsGrpNam                  AS ItemGroup,
+    itm.InvntryUom                  AS InventoryUoM
+FROM OITM AS itm
+INNER JOIN OITW AS itw
+    ON itm.ItemCode = itw.ItemCode
+INNER JOIN OITB AS itb
+    ON itm.ItmsGrpCod = itb.ItmsGrpCod
+WHERE
+    itm.ManBtchNum = 'N'
+    AND itw.OnHand > 0
+
+ORDER BY
+    ItemCode, WarehouseCode, BatchNumber;
