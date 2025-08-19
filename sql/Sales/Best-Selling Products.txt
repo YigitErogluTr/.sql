@@ -1,1 +1,23 @@
-SELECT      T1.ItemCode AS [Ürün Kodu],     T2.ItemName AS [Ürün Adı],     SUM(T1.Quantity) AS [Satış Miktarı],     SUM(T1.LineTotal) AS [Toplam Satış Tutarı] FROM      OINV T0 INNER JOIN      INV1 T1 ON T0.DocEntry = T1.DocEntry INNER JOIN      OITM T2 ON T1.ItemCode = T2.ItemCode WHERE      T0.DocDate BETWEEN [%0] AND [%1] GROUP BY      T1.ItemCode, T2.ItemName ORDER BY      [Satış Miktarı] DESC
+-- Sales Report by Item
+-- Summarizes sales quantity and total amount by product within a date range
+
+SELECT  
+    L.ItemCode       AS [Item Code],  
+    I.ItemName       AS [Item Name],  
+    SUM(L.Quantity)  AS [Sales Quantity],  
+    SUM(L.LineTotal) AS [Total Sales Amount (LC)]  
+
+FROM  
+    OINV H                -- Invoice Header  
+    INNER JOIN INV1 L ON H.DocEntry = L.DocEntry   -- Invoice Lines  
+    INNER JOIN OITM I ON L.ItemCode = I.ItemCode   -- Item Master  
+
+WHERE  
+    H.DocDate BETWEEN [%0] AND [%1]  
+
+GROUP BY  
+    L.ItemCode,  
+    I.ItemName  
+
+ORDER BY  
+    [Sales Quantity] DESC;
