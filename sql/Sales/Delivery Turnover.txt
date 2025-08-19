@@ -1,1 +1,91 @@
-SELECT      T1.[DocDate] AS 'Kayıt tarihi',     T1.[DocDueDate] AS 'Vade tarihi',     T1.[TaxDate] AS 'Belge tarihi',     MONTH(T1.[TaxDate]) AS 'Belge Tarihi Ayı',     T1.[DocEntry] AS 'Belge numarası',     T1.[CANCELED] AS 'İptal edildi',      T1.[CardCode] AS 'Müşteri/satıcı kodu',      T1.[CardName] AS 'Müşteri/satıcı adı',     C.[GroupCode] AS 'Müşteri/Satıcı Grup Kodu',     G.[GroupName] AS 'Müşteri/Satıcı Grup Adı',     CASE          WHEN T1.[ShipToCode] <> '' THEN T1.[ShipToCode]         ELSE 'FATURA ADRESİNE SEVK'     END AS 'Sevkiyat adresi Kodu',     T1.[Address2] AS 'Sevkiyat adresi',      T1.[U_AIF_ET_OrderNo] AS 'Sipariş No',      T1.[U_H1_eIrsaliyeNo] AS 'e-İrsaliye No',      T1.[U_H1_BelgeTipi] AS 'Satış Belge Tipi',     T1.[SlpCode] AS 'Satış çalışanı kodu',      SLP.[SlpName] AS 'Satış çalışanı adı',      T0.[WhsCode] AS 'Depo kodu',     ITM.[ItmsGrpCod] AS 'Kalem grubu kodu',     ITB.[ItmsGrpNam] AS 'Kalem grubu adı',     ITM.[U_stokkodgrup] AS 'Stok Kod Grubu',     T0.[ItemCode] AS 'Kalem numarası',      T0.[Dscription] AS 'Kalem/hizmet tanımı',      T0.[Quantity] AS 'Miktar',     RDR.Quantity            AS 'Sipariş Miktarı', CASE          WHEN RDR.Quantity - T0.Quantity > 0 THEN RDR.Quantity - T0.Quantity         ELSE 0     END AS 'Sevk Edilemeyen Miktar',     T0.[UomCode] AS 'Ölçü birimi kodu',     T0.[PriceBefDi] AS 'Birim fiyat',     T1.[DocCur] AS 'Belge para birimi',      T0.[Rate] AS 'Para birimi kuru',      CASE          WHEN T0.[Rate] = 0 OR T0.[Rate] IS NULL THEN T0.[PriceBefDi]         ELSE T0.[PriceBefDi] * T0.[Rate]     END AS 'TRY Karşılığı Birim Fiyat',      T0.[Quantity] *      CASE          WHEN T0.[Rate] = 0 OR T0.[Rate] IS NULL THEN T0.[PriceBefDi]         ELSE T0.[PriceBefDi] * T0.[Rate]     END AS 'Toplam TRY Satış (Vergi Hariç)',      T0.[VatGroup],      CASE          WHEN T0.[VatGroup] = 's05' THEN ' %0'         WHEN T0.[VatGroup] = 's19' THEN ' %20'         WHEN T0.[VatGroup] = 's20' THEN ' %10'         WHEN T0.[VatGroup] = 's21' THEN ' %20'         WHEN T0.[VatGroup] = 'S04' THEN '%0'         WHEN T0.[VatGroup] = 'S12' THEN '%18'         WHEN T0.[VatGroup] = 'S22' THEN '%10'         WHEN T0.[VatGroup] = 'S23' THEN '%20'         WHEN T0.[VatGroup] = 'S24' THEN '%10'         ELSE ''     END AS 'Vergi oranı' FROM       DLN1 T0   INNER JOIN      ODLN T1 ON T1.DocEntry = T0.DocEntry INNER JOIN      OCRD C ON T1.CardCode = C.CardCode INNER JOIN      OCRG G ON C.GroupCode = G.GroupCode INNER JOIN      OSLP SLP ON T1.SlpCode = SLP.SlpCode INNER JOIN      OITM ITM ON T0.ItemCode = ITM.ItemCode INNER JOIN      OITB ITB ON ITM.ItmsGrpCod = ITB.ItmsGrpCod LEFT JOIN      RDR1 RDR ON T0.BaseEntry = RDR.DocEntry AND T0.BaseLine = RDR.LineNum AND T0.BaseType = 17 WHERE      T1.CANCELED = 'N'
+-- Delivery Notes with Linked Sales Order Quantities
+-- DLN1/ODLN (Delivery) + RDR1 (Sales Order) + BP/Items/Groups/Salesperson
+-- Notes:
+--  - All column captions are English and generic.
+--  - Local currency (LC) math uses PriceBefDi * Rate with NULL-safe handling.
+--  - "Not Shipped Qty" = max(SO Qty - Delivered Qty, 0).
+
+SELECT
+    -- Dates & Document
+    H.[DocDate]                       AS [Posting Date],
+    H.[DocDueDate]                    AS [Due Date],
+    H.[TaxDate]                       AS [Document Date],
+    MONTH(H.[TaxDate])                AS [Document Month],
+    H.[DocEntry]                      AS [Document No],
+    H.[CANCELED]                      AS [Canceled],
+
+    -- Business Partner
+    H.[CardCode]                      AS [BP Code],
+    H.[CardName]                      AS [BP Name],
+    BP.[GroupCode]                    AS [BP Group Code],
+    BPG.[GroupName]                   AS [BP Group Name],
+
+    -- Shipping
+    CASE WHEN ISNULL(H.[ShipToCode], '') <> '' THEN H.[ShipToCode]
+         ELSE 'BILLING ADDRESS (SHIP-TO)'
+    END                               AS [Ship-To Code],
+    H.[Address2]                      AS [Ship-To Address],
+
+    -- Custom references (kept as-is; generic captions)
+    H.[U_AIF_ET_OrderNo]              AS [External Order No],
+    H.[U_H1_eIrsaliyeNo]              AS [E-Dispatch No],
+    H.[U_H1_BelgeTipi]                AS [Sales Doc Type],
+
+    -- Sales employee
+    H.[SlpCode]                       AS [Sales Employee Code],
+    S.[SlpName]                       AS [Sales Employee],
+
+    -- Item & groups
+    L.[WhsCode]                       AS [Warehouse],
+    I.[ItmsGrpCod]                    AS [Item Group Code],
+    IG.[ItmsGrpNam]                   AS [Item Group Name],
+    I.[U_stokkodgrup]                 AS [Item Code Group],
+
+    L.[ItemCode]                      AS [Item Code],
+    L.[Dscription]                    AS [Item Description],
+
+    -- Quantities (Delivery + linked Sales Order)
+    L.[Quantity]                      AS [Delivered Quantity],
+    SO.[Quantity]                     AS [Sales Order Quantity],
+    CASE WHEN ISNULL(SO.[Quantity], 0) - ISNULL(L.[Quantity], 0) > 0
+         THEN ISNULL(SO.[Quantity], 0) - ISNULL(L.[Quantity], 0)
+         ELSE 0
+    END                               AS [Not Shipped Quantity],
+
+    -- Pricing & currency
+    L.[UomCode]                       AS [UoM],
+    L.[PriceBefDi]                    AS [Unit Price (DocCur, excl. tax)],
+    H.[DocCur]                        AS [Document Currency],
+    L.[Rate]                          AS [Currency Rate],
+    CASE
+        WHEN ISNULL(L.[Rate], 0) = 0 THEN L.[PriceBefDi]
+        ELSE L.[PriceBefDi] * L.[Rate]
+    END                               AS [Unit Price (LC, excl. tax)],
+
+    L.[Quantity] * CASE
+        WHEN ISNULL(L.[Rate], 0) = 0 THEN L.[PriceBefDi]
+        ELSE L.[PriceBefDi] * L.[Rate]
+    END                               AS [Line Total (LC, excl. tax)],
+
+    -- VAT
+    L.[VatGroup]                      AS [VAT Code],
+    CASE
+        WHEN L.[VatGroup] = 's05' THEN '%0'
+
+        ELSE ''
+    END                                AS [VAT Rate]
+
+FROM
+    DLN1 L
+    INNER JOIN ODLN H   ON H.[DocEntry]   = L.[DocEntry]
+    INNER JOIN OCRD BP  ON H.[CardCode]   = BP.[CardCode]
+    INNER JOIN OCRG BPG ON BP.[GroupCode] = BPG.[GroupCode]
+    INNER JOIN OSLP S   ON H.[SlpCode]    = S.[SlpCode]
+    INNER JOIN OITM I   ON L.[ItemCode]   = I.[ItemCode]
+    INNER JOIN OITB IG  ON I.[ItmsGrpCod] = IG.[ItmsGrpCod]
+    LEFT  JOIN RDR1 SO  ON L.[BaseEntry]  = SO.[DocEntry]
+                        AND L.[BaseLine]  = SO.[LineNum]
+                        AND L.[BaseType]  = 17  -- Sales Order
+
+WHERE
+    H.[CANCELED] = 'N';
