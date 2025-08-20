@@ -1,1 +1,26 @@
-SELECT      T0.DocNum,     CASE T0.Type         WHEN 'S' THEN 'Standart'               WHEN 'D' THEN 'Demontaj'          WHEN 'P' THEN N'Özel'               ELSE T0.Type      END AS 'Type',       CASE T0.Status         WHEN 'L' THEN 'Kapalı'         WHEN 'C' THEN 'İptal Edildi'         WHEN 'R' THEN 'Onaylandı'         WHEN 'P'  THEN 'Planlandı'         ELSE T0.Status       END AS 'Status',     T0.PostDate,     T0.CloseDate,      T0.Comments,     T0.OriginNum FROM dbo.OWOR T0
+/* 📋 Production Orders Overview
+   - Retrieves production order headers from OWOR
+   - Translates order type and status codes into readable values
+   - Includes posting date, closing date, comments, and origin reference
+*/
+
+SELECT
+    WO.DocNum                           AS DocumentNumber,
+    CASE WO.Type
+        WHEN 'S' THEN 'Standard'
+        WHEN 'D' THEN 'Disassembly'
+        WHEN 'P' THEN 'Special'
+        ELSE WO.Type
+    END                                 AS OrderType,
+    CASE WO.Status
+        WHEN 'L' THEN 'Closed'
+        WHEN 'C' THEN 'Cancelled'
+        WHEN 'R' THEN 'Approved'
+        WHEN 'P' THEN 'Planned'
+        ELSE WO.Status
+    END                                 AS OrderStatus,
+    WO.PostDate                         AS PostingDate,
+    WO.CloseDate                        AS ClosingDate,
+    WO.Comments                         AS Comments,
+    WO.OriginNum                        AS OriginOrderNumber
+FROM dbo.OWOR AS WO;
