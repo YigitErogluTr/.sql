@@ -1,1 +1,98 @@
-SELECT      a.*,     a.U_fasonuretim,     b.ItemCode,      b.ResName FROM (     SELECT          T0.DocNum,         CASE T0.Type             WHEN 'S' THEN 'Standart'                   WHEN 'D' THEN 'Demontaj'              WHEN 'P' THEN 'Özel'                   ELSE T0.Type         END AS 'Type',         CASE T0.Status             WHEN 'L' THEN 'Kapalı'             WHEN 'C' THEN 'İptal'             WHEN 'R' THEN 'Onaylandı'             WHEN 'P' THEN 'Planlandı'             ELSE T0.Status         END AS 'Status',         T0.DueDate,         MONTH(T0.DueDate) AS 'Vade Tarihi Ayı',         T0.StartDate,         MONTH(T0.StartDate) AS 'Başlangıç Tarihi Ayı',         T0.PostDate,         MONTH(T0.PostDate) AS 'Sipariş Tarihi Ayı',         CASE              WHEN T0.CloseDate IS NOT NULL THEN CONVERT(VARCHAR, T0.CloseDate,103)             ELSE 'Belge Durumu Açık'          END AS 'CloseDate',             CASE              WHEN T0.CloseDate IS NOT NULL THEN CONVERT(VARCHAR, MONTH(T0.CloseDate))             ELSE 'Belge Durumu Açık'         END AS 'Kapanış Tarihi Ayı',           T0.CardCode,         OCRD.CardName,         CASE              WHEN T0.LinkToObj = 202 THEN 'Üretim Siparişi'             WHEN T0.LinkToObj = 17 THEN 'Satış Siparişi'             ELSE NULL         END AS 'Bağlantılı Sipariş Türü',         T0.OriginNum AS "Bağlantılı Sipariş Numarası",         T0.U_fasonuretim,         OITB.ItmsGrpNam,          T0.ItemCode,         OITM.U_stokkodgrup,         T0.CmpltQty,         T0.[Uom] AS [Birim],         T0.Comments,         OITM.U_H1_UretimBolumu,         OPRC.PrcName,          OITM.U_urungrup AS "Urun Grubu"     FROM          dbo.OWOR T0     LEFT JOIN          dbo.OITM ON T0.ItemCode = OITM.ItemCode      LEFT JOIN          OPRC ON OITM.U_H1_UretimBolumu = OPRC.PrcCode     LEFT JOIN         dbo.OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod     LEFT JOIN         OCRD ON T0.CardCode = OCRD.CardCode ) a INNER JOIN (     SELECT          OWOR.DocNum,         WOR1.ItemCode,         ORSC.ResName     FROM          OWOR     LEFT JOIN          WOR1 ON OWOR.DocEntry = WOR1.DocEntry     LEFT JOIN          ORSC ON WOR1.ItemCode = ORSC.VisResCode ) b ON a.DocNum = b.DocNum ORDER BY          a.DocNum ASC
+/* 📦 Work Orders with Components & Resources (anonymized)
+   - OWOR details + linked components (WOR1) + resource name (ORSC)
+   
+*/
+
+WITH WorkOrders AS (
+    SELECT
+        W.DocNum                                        AS WorkOrderNo,
+        CASE W.Type
+            WHEN 'S' THEN 'Standard'
+            WHEN 'D' THEN 'Disassembly'
+            WHEN 'P' THEN 'Special'
+            ELSE W.Type
+        END                                             AS WorkOrderType,
+        CASE W.Status
+            WHEN 'L' THEN 'Closed'
+            WHEN 'C' THEN 'Canceled'
+            WHEN 'R' THEN 'Approved'
+            WHEN 'P' THEN 'Planned'
+            ELSE W.Status
+        END                                             AS WorkOrderStatus,
+        W.DueDate                                       AS DueDate,
+        MONTH(W.DueDate)                                AS DueMonthNo,
+        W.StartDate                                     AS StartDate,
+        MONTH(W.StartDate)                              AS StartMonthNo,
+        W.PostDate                                      AS PostDate,
+        MONTH(W.PostDate)                               AS PostMonthNo,
+        W.CloseDate                                     AS CloseDate,
+        CASE
+            WHEN W.CloseDate IS NOT NULL THEN MONTH(W.CloseDate)
+            ELSE NULL
+        END                                             AS CloseMonthNo,
+        CASE W.LinkToObj
+            WHEN 202 THEN 'Production Order'
+            WHEN 17  THEN 'Sales Order'
+            ELSE NULL
+        END                                             AS LinkedDocType,
+        W.OriginNum                                     AS LinkedDocNo,
+        W.U_fasonuretim                                 AS IsSubcontracted,   -- custom field
+        G.ItmsGrpNam                                    AS ItemGroupName,
+        W.ItemCode                                      AS ProductCode,
+        I.U_stokkodgrup                                 AS StockCodeGroup,
+        W.CmpltQty                                      AS CompletedQty,
+        W.Uom                                           AS UoM,
+        W.Comments                                      AS Comments,
+        I.U_H1_UretimBolumu                             AS CostCenterCode,     -- custom field
+        C.PrcName                                       AS CostCenterName,
+        I.U_urungrup                                    AS ProductGroup        -- custom field
+    FROM dbo.OWOR AS W
+    LEFT JOIN dbo.OITM AS I
+        ON W.ItemCode = I.ItemCode
+    LEFT JOIN dbo.OPRC AS C
+        ON I.U_H1_UretimBolumu = C.PrcCode
+    LEFT JOIN dbo.OITB AS G
+        ON I.ItmsGrpCod = G.ItmsGrpCod
+),
+WorkOrderComponents AS (
+    SELECT
+        W.DocNum                                        AS WorkOrderNo,
+        R.ItemCode                                      AS ComponentCode,
+        RES.ResName                                     AS ResourceName
+    FROM dbo.OWOR AS W
+    LEFT JOIN dbo.WOR1 AS R
+        ON W.DocEntry = R.DocEntry
+    LEFT JOIN dbo.ORSC AS RES
+        ON R.ItemCode = RES.VisResCode
+)
+SELECT
+    A.WorkOrderNo,
+    A.WorkOrderType,
+    A.WorkOrderStatus,
+    A.DueDate,
+    A.DueMonthNo,
+    A.StartDate,
+    A.StartMonthNo,
+    A.PostDate,
+    A.PostMonthNo,
+    A.CloseDate,
+    A.CloseMonthNo,
+    A.LinkedDocType,
+    A.LinkedDocNo,
+    A.IsSubcontracted,
+    A.ItemGroupName,
+    A.ProductCode,
+    A.StockCodeGroup,
+    A.CompletedQty,
+    A.UoM,
+    A.Comments,
+    A.CostCenterCode,
+    A.CostCenterName,
+    A.ProductGroup,
+    B.ComponentCode,
+    B.ResourceName
+FROM WorkOrders AS A
+INNER JOIN WorkOrderComponents AS B
+    ON A.WorkOrderNo = B.WorkOrderNo
+ORDER BY
+    A.WorkOrderNo ASC;
