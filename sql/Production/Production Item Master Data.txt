@@ -1,1 +1,16 @@
-SELECT      T0.[ItemCode],      T0.[ItemName],       T2.[ItmsGrpNam],      T0.[U_stokkodgrup],      T0.[U_urungrup],      T0.[U_enolcusu],      T0.[U_boyolcusu],      T1.[PrcName] FROM      OITM T0 INNER JOIN      OITB T2 ON T0.[ItmsGrpCod] = T2.[ItmsGrpCod] LEFT JOIN      OPRC T1 ON T0.[U_H1_UretimBolumu] = T1.[PrcCode]
+/* 📋 Item Master Data with Groups and Production Department */
+
+SELECT
+    I.ItemCode              AS ItemCode,
+    I.ItemName              AS ItemName,
+    IG.ItmsGrpNam           AS ItemGroupName,
+    I.U_stokkodgrup         AS StockCodeGroup,
+    I.U_urungrup            AS ProductGroup,
+    I.U_enolcusu            AS WidthMeasure,
+    I.U_boyolcusu           AS LengthMeasure,
+    PD.PrcName              AS ProductionDepartment
+FROM dbo.OITM AS I
+INNER JOIN dbo.OITB AS IG
+    ON I.ItmsGrpCod = IG.ItmsGrpCod
+LEFT JOIN dbo.OPRC AS PD
+    ON I.U_H1_UretimBolumu = PD.PrcCode;
