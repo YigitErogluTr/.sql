@@ -1,1 +1,20 @@
-SELECT T0.[DocDate], T0.[DocNum] ,T1.[BaseRef] as 'Üretim Sipariş No', T1.[ItemCode], T1.[Dscription], T1.[Quantity], T1.[WhsCode], T1.[PriceBefDi], T1.[unitMsr] FROM OIGE T0  INNER JOIN IGE1 T1 ON T0.[DocEntry] = T1.[DocEntry]  WHERE T1.[BaseType]=202 AND T0.[DocDate] BETWEEN [%0] AND [%1] ORDER BY T0.[DocDate]
+/* 📦 Goods Issue linked to Production Orders (BaseType = 202) */
+
+SELECT
+    GI.DocDate               AS PostingDate,
+    GI.DocNum                AS GoodsIssueNo,
+    GI1.BaseRef              AS ProductionOrderNo,
+    GI1.ItemCode             AS ItemCode,
+    GI1.Dscription           AS ItemDescription,
+    GI1.Quantity             AS IssuedQty,
+    GI1.WhsCode              AS WarehouseCode,
+    GI1.PriceBefDi           AS UnitPriceBeforeDiscount,
+    GI1.unitMsr              AS UoM
+FROM dbo.OIGE AS GI
+INNER JOIN dbo.IGE1 AS GI1
+    ON GI.DocEntry = GI1.DocEntry
+WHERE
+    GI1.BaseType = 202               -- 202 = Production Order
+    AND GI.DocDate BETWEEN [%0] AND [%1]
+ORDER BY
+    GI.DocDate ASC;
