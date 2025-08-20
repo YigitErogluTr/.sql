@@ -1,1 +1,21 @@
-SELECT      T2.ItmsGrpNam AS [Stok Grubu],     T0.ItemCode AS [Stok Kodu],     T0.ItemName AS [Stok Adı],     T1.WhsCode AS [Depo Kodu],     T1.OnHand AS [Mevcut Miktar],     (         SELECT MAX(N0.DocDate)         FROM OINM N0         WHERE              N0.ItemCode = T0.ItemCode              AND N0.Warehouse = T1.WhsCode     ) AS [Son Hareket Tarihi] FROM      OITM T0 INNER JOIN      OITW T1 ON T0.ItemCode = T1.ItemCode INNER JOIN      OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod WHERE      T1.OnHand > 0 ORDER BY     [Son Hareket Tarihi] ASC
+/* Current Stock by Item & Warehouse + Last Movement Date */
+
+SELECT
+    G.ItmsGrpNam                                      AS ItemGroup,
+    I.ItemCode                                        AS ItemCode,
+    I.ItemName                                        AS ItemName,
+    W.WhsCode                                         AS WarehouseCode,
+    W.OnHand                                          AS OnHandQty,
+    (
+        SELECT MAX(M.DocDate)
+        FROM OINM AS M
+        WHERE M.ItemCode = I.ItemCode
+          AND M.Warehouse = W.WhsCode
+    )                                                 AS LastMovementDate
+FROM OITM AS I
+INNER JOIN OITW AS W
+        ON I.ItemCode = W.ItemCode
+INNER JOIN OITB AS G
+        ON I.ItmsGrpCod = G.ItmsGrpCod
+WHERE W.OnHand > 0
+ORDER BY LastMovementDate ASC;
