@@ -1,1 +1,19 @@
-SELECT      T0.ItemCode as "Kalem Kodu",      T0.ItemName as "Kalem Tanımı",       T1.WhsCode as "Depo",  'PARTİ TAKİBİ YAPILMAMAKTADIR.' AS "Parti Takibi Durumu",     T1.OnHand as "Stok",      T2.ItmsGrpNam as "Malzeme Grubu",     T0.InvntryUom as "Stok Takip Birimi",     T0.ItmsGrpCod FROM      OITM T0     INNER JOIN OITW T1 ON T0.ItemCode = T1.ItemCode     INNER JOIN OITB T2 ON T0.ItmsGrpCod = T2.ItmsGrpCod   WHERE      T0.ManBtchNum = 'N'     AND T1.OnHand > 0 ORDER BY      T0.ItemCode
+/* Items without Batch Tracking - Current Stock Report */
+
+SELECT
+    I.ItemCode       AS ItemCode,
+    I.ItemName       AS ItemDescription,
+    W.WhsCode        AS Warehouse,
+    'NO BATCH TRACKING' AS BatchTrackingStatus,
+    W.OnHand         AS StockQty,
+    G.ItmsGrpNam     AS ItemGroup,
+    I.InvntryUom     AS TrackingUoM,
+    I.ItmsGrpCod     AS ItemGroupCode
+FROM OITM AS I
+INNER JOIN OITW AS W
+        ON I.ItemCode = W.ItemCode
+INNER JOIN OITB AS G
+        ON I.ItmsGrpCod = G.ItmsGrpCod
+WHERE I.ManBtchNum = 'N'
+  AND W.OnHand > 0
+ORDER BY I.ItemCode;
