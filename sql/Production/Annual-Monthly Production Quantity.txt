@@ -1,1 +1,33 @@
-SELECT     YEAR(T0.[PostDate]) AS 'Yıl',          MONTH(T0.[PostDate]) AS 'Ay',     T0.[ItemCode],      T0.[ProdName],     COUNT(T0.[DocNum]) AS ToplamBelge,      SUM(T0.[PlannedQty]) AS 'Toplam Planlanan Miktar',      SUM(T0.[CmpltQty]) AS 'Toplam Tamamlanan Miktar',      OITB.ItmsGrpNam AS 'Grup Adı',      OITM.U_stokkodgrup AS 'Stok Kodu Grubu',      OPRC.PrcName AS 'Masraf Yeri Adı',     OITM.U_urungrup AS 'Ürün Grubu' FROM      OWOR T0   LEFT JOIN      OITM ON T0.ItemCode = OITM.ItemCode  LEFT JOIN      OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod LEFT JOIN      OPRC ON OITM.U_H1_UretimBolumu = OPRC.PrcCode WHERE  T0.[PostDate] BETWEEN [%0] AND [%1] GROUP BY      YEAR(T0.[PostDate]),      MONTH(T0.[PostDate]),      T0.[ItemCode],      T0.[ProdName],     OITB.ItmsGrpNam,      OITM.U_stokkodgrup,      OPRC.PrcName,      OITM.U_urungrup ORDER BY      Yıl DESC,      Ay DESC,      T0.[ItemCode]
+/* Production Orders Summary (Planned vs Completed) */
+
+SELECT
+    YEAR(W.PostDate)          AS Year,
+    MONTH(W.PostDate)         AS Month,
+    W.ItemCode                AS ItemCode,
+    W.ProdName                AS ProductName,
+    COUNT(W.DocNum)           AS TotalOrders,
+    SUM(W.PlannedQty)         AS TotalPlannedQty,
+    SUM(W.CmpltQty)           AS TotalCompletedQty,
+    G.ItmsGrpNam              AS ItemGroup,        -- Item Group Name
+    I.U_stokkodgrup           AS StockCodeGroup,   -- Custom Stock Code Group
+    C.PrcName                 AS CostCenter,       -- Cost Center
+    I.U_urungrup              AS ProductGroup      -- Custom Product Group
+FROM OWOR AS W
+LEFT JOIN OITM AS I ON W.ItemCode = I.ItemCode
+LEFT JOIN OITB AS G ON I.ItmsGrpCod = G.ItmsGrpCod
+LEFT JOIN OPRC AS C ON I.U_H1_UretimBolumu = C.PrcCode
+WHERE
+    W.PostDate BETWEEN [%0] AND [%1]
+GROUP BY
+    YEAR(W.PostDate),
+    MONTH(W.PostDate),
+    W.ItemCode,
+    W.ProdName,
+    G.ItmsGrpNam,
+    I.U_stokkodgrup,
+    C.PrcName,
+    I.U_urungrup
+ORDER BY
+    Year DESC,
+    Month DESC,
+    W.ItemCode;
