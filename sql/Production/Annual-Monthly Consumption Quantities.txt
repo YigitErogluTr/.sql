@@ -1,1 +1,37 @@
-SELECT      YEAR(T0.[StartDate]) AS Yıl,          MONTH(T0.[StartDate]) AS Ay,      T0.ItemCode,       T0.ItemName,      COUNT(T0.[DocEntry]) AS ToplamBelge,      SUM(T0.PlannedQty) AS ToplamPlanlananMiktar, -- Sum of PlannedQty     SUM(T0.IssuedQty) AS ToplamYayımlananMiktar, -- Sum of IssuedQty     T0.UomCode,      OITB.ItmsGrpNam AS 'Grup Adı', -- Item Group Name     OITM.U_stokkodgrup AS 'Stok Kodu Grubu', -- Stock Code Group     OPRC.PrcName AS 'Masraf Yeri Adı', -- Cost Center Name     OITM.U_urungrup AS 'Urun Grubu' -- Product Group FROM      WOR1 T0 LEFT JOIN      OITM ON T0.ItemCode = OITM.ItemCode  LEFT JOIN      OITB ON OITM.ItmsGrpCod = OITB.ItmsGrpCod LEFT JOIN      OPRC ON OITM.U_H1_UretimBolumu = OPRC.PrcCode WHERE      T0.ItemType = 4  AND T0.[StartDate] BETWEEN [%0] AND [%1] GROUP BY      YEAR(T0.[StartDate]), -- Group by Year     MONTH(T0.[StartDate]), -- Group by Month     T0.ItemCode,      T0.UomCode,      T0.ItemType,      T0.ItemName,      OITB.ItmsGrpNam,      OITM.U_stokkodgrup,     OPRC.PrcName,     OITM.U_urungrup ORDER BY      YEAR(T0.[StartDate]),      MONTH(T0.[StartDate]),      T0.ItemCode
+/* Monthly Production Report by Item (Planned vs Issued) */
+
+SELECT
+    YEAR(W.StartDate)        AS Year,
+    MONTH(W.StartDate)       AS Month,
+    W.ItemCode               AS ItemCode,
+    W.ItemName               AS ItemDescription,
+    COUNT(W.DocEntry)        AS TotalDocs,
+    SUM(W.PlannedQty)        AS TotalPlannedQty,    -- Sum of PlannedQty
+    SUM(W.IssuedQty)         AS TotalIssuedQty,     -- Sum of IssuedQty
+    W.UomCode                AS UoM,
+    G.ItmsGrpNam             AS ItemGroup,          -- Item Group
+    I.U_stokkodgrup          AS ItemCodeGroup,      -- Custom Stock Code Group
+    C.PrcName                AS CostCenter,         -- Cost Center Name
+    I.U_urungrup             AS ProductGroup        -- Custom Product Group
+FROM WOR1 AS W
+LEFT JOIN OITM AS I ON W.ItemCode = I.ItemCode
+LEFT JOIN OITB AS G ON I.ItmsGrpCod = G.ItmsGrpCod
+LEFT JOIN OPRC AS C ON I.U_H1_UretimBolumu = C.PrcCode
+WHERE
+    W.ItemType = 4
+    AND W.StartDate BETWEEN [%0] AND [%1]
+GROUP BY
+    YEAR(W.StartDate),
+    MONTH(W.StartDate),
+    W.ItemCode,
+    W.ItemName,
+    W.UomCode,
+    W.ItemType,
+    G.ItmsGrpNam,
+    I.U_stokkodgrup,
+    C.PrcName,
+    I.U_urungrup
+ORDER BY
+    YEAR(W.StartDate),
+    MONTH(W.StartDate),
+    W.ItemCode;
