@@ -1,1 +1,15 @@
-SELECT      T0.ItemCode AS [Mal Kodu],      T1.ItemName AS [Mal Adı],      T0.DocDate AS [Giriş Tarihi],     T0.[BASE_REF], T0.[CardName], T0.[Warehouse],     T0.[InQty]AS [Giren Miktar] FROM OINM T0 JOIN OITM T1 ON T0.ItemCode = T1.ItemCode WHERE  T0.[InQty] > 0   ORDER BY T0.DocDate DESC
+/* Incoming Stock Transactions (OINM) */
+
+SELECT
+    N.ItemCode            AS ItemCode,
+    I.ItemName            AS ItemName,
+    N.DocDate             AS EntryDate,
+    N.BaseRef             AS BaseRef,
+    N.CardName            AS BusinessPartner,
+    N.Warehouse           AS Warehouse,
+    N.InQty               AS InQuantity
+FROM OINM AS N
+JOIN OITM AS I
+     ON N.ItemCode = I.ItemCode
+WHERE N.InQty > 0
+ORDER BY N.DocDate DESC;
