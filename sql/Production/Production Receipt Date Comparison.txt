@@ -1,1 +1,18 @@
-SELECT      YEAR(T1.[DocDate]) AS "Yıl",     T1.[DocNum] AS "Belge No",     T1.[DocDate] AS "Belge Tarihi ÜSK",     T1.[CreateDate] AS "Oluşturma Tarihi ADOC",     CASE          WHEN T1.[DocDate] <> T1.[CreateDate] THEN 'Kayıt Tarihi Eşleşmiyor'         ELSE ''      END AS "Durum" FROM [dbo].[OIGN] T1  WHERE YEAR(T1.[DocDate]) = 2024
+/* 📋 Goods Receipt Notes – Date Consistency Check
+   - Retrieves GRN (OIGN) documents from 2024
+   - Compares document date (DocDate) vs creation date (CreateDate)
+   - Flags mismatches as "Date Mismatch"
+*/
+
+SELECT
+    YEAR(GRN.DocDate)              AS Year,
+    GRN.DocNum                     AS DocumentNumber,
+    GRN.DocDate                    AS DocumentDate,
+    GRN.CreateDate                 AS CreationDate,
+    CASE
+        WHEN GRN.DocDate <> GRN.CreateDate
+            THEN 'Date Mismatch'
+        ELSE ''
+    END                            AS Status
+FROM dbo.OIGN AS GRN
+WHERE YEAR(GRN.DocDate) = 2024;
