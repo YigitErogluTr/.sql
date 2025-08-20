@@ -1,1 +1,1 @@
-EXEC [Snt_Has_Sp_IsEmriKapatListesi] '2024','1'
+
