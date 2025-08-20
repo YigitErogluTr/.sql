@@ -1,1 +1,14 @@
-SELECT T0.[Father], T0.[Code], T0.[Quantity], T0.[Uom] FROM ATT1 T0 WHERE T0.[Father] NOT IN (SELECT DISTINCT T1.[Father] FROM ITT1 T1) AND T0.[Father] LIKE '%[%2]%'
+/* Alternative Items without Standard BOM Reference */
+
+SELECT
+    A.Father        AS ParentItem,
+    A.Code          AS ComponentCode,
+    A.Quantity      AS ComponentQty,
+    A.Uom           AS UnitOfMeasure
+FROM ATT1 AS A
+WHERE
+    A.Father NOT IN (
+        SELECT DISTINCT B.Father
+        FROM ITT1 AS B
+    )
+    AND A.Father LIKE '%[%2]%';
