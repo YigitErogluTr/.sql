@@ -1,2 +1,2 @@
 # .sql
-sql-projelerim
+sql-projects
